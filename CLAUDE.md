@@ -114,8 +114,10 @@ A `[TOC]` line is a one-line block (`kind:'toc'`) whose preview is `tocHtml()`
 over `headings`; the preview key is the headings list plus the from-h2 flag, so
 it follows edits and the numbering toggles. Entries carry the heading number in
 a `.tn` span shown only under `body.hnums`; `tocHtml()` counts exactly as the
-CSS counters do, including `body.hfrom2` (title h1 unnumbered, h2 is the top
-level), so list and page always agree. In the editor each entry carries
+CSS counters do, including `body.hfrom2`, so list and page always agree.
+`render()` sets `body.hfrom2` whenever the document has exactly one h1: that
+h1 is the title, unnumbered, and h2 is the top level (1., 2., 3.1). With zero
+or several h1s numbering starts at h1. There is no manual switch. In the editor each entry carries
 `data-line`, and a click on any `a[href^="#"]`
 inside the editor is intercepted: TOC entries jump by line, text links by slug
 lookup, both through `jumpToLine()` which the outline drawer uses too.

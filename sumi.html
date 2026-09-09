@@ -346,7 +346,8 @@ body.hnums .line.h4::before{content:counter(h1) '.' counter(h2) '.' counter(h3) 
 body.hnums .line.h5::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
 body.hnums .line.h6::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
 body.hnums .h::before{color:var(--ink-soft)}
-/* from h2: the title h1 is unnumbered and does not restart the sections */
+/* body.hfrom2 is set by render() when the document has exactly one h1: that
+   h1 is the title, unnumbered, and h2 is the top level */
 body.hnums.hfrom2 .line.h1{counter-increment:none; counter-reset:none}
 body.hnums.hfrom2 .line.h1::before{content:none}
 body.hnums.hfrom2 .line.h2::before{content:counter(h2) '. '}
@@ -468,7 +469,7 @@ kbd{
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
     <tr><td>View</td><td>outline, focus, typewriter, source code; line width and typeface</td></tr>
-    <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3, optionally from h2) and equation numbers</td></tr>
+    <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3; a lone # title stays unnumbered) and equation numbers</td></tr>
     <tr><td>File</td><td>open, save, copy markdown, export HTML, print or PDF</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
     <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
@@ -1052,6 +1053,8 @@ let flags = [];
 function render(text) {
   const lines = text.split('\n');
   flags = scan(lines);
+  /* One h1 is the document title: number from h2 and leave it unnumbered. */
+  document.body.classList.toggle('hfrom2', headings.filter(h => h.level === 1).length === 1);
   for (const n of units()) if (n.nodeType !== 1 || !n.classList.contains('line')) n.remove();
   const kids = editor.children;
   while (kids.length > lines.length) editor.removeChild(editor.lastChild);
@@ -1373,14 +1376,13 @@ addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY 
 $('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
 /* View-state classes on body. The menus read them back, so there is no button
    state to keep in sync; the persisted ones are written on every change. */
-const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'hfrom2', 'eqnos'];
+const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos'];
 function toggle(cls) {
   const on = document.body.classList.toggle(cls);
   if (PERSISTED.includes(cls)) storeSettings();
   if (cls === 'focus' && !on) for (const el of editor.children) el.classList.remove('near');
   if (cls === 'focus' || cls === 'typewriter') updateActive();
   if (cls === 'outline') buildOutline();
-  if (cls === 'hfrom2') renderPreviews();
   return on;
 }
 
@@ -1423,7 +1425,7 @@ const menuButton = (id, build) => { $('#' + id).onclick = e => { e.stopPropagati
 const check = (cls, label, hint) => ({ label, hint, on: document.body.classList.contains(cls), data: `data-n="${cls}"`, act: () => toggle(cls) });
 const cycle = (key, label, act) => ({ label, keep: true, data: `data-v="${key}"`, act });
 
-const NUMS = [['linenos', 'Code line numbers'], ['hnums', 'Heading numbers'], ['hfrom2', 'Number from h2, title unnumbered'], ['eqnos', 'Equation numbers']];
+const NUMS = [['linenos', 'Code line numbers'], ['hnums', 'Heading numbers'], ['eqnos', 'Equation numbers']];
 menuButton('bView', () => [
   check('outline', 'Outline', '⌘\\'),
   check('focus', 'Focus mode', '⌘⇧F'),

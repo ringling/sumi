@@ -56,24 +56,24 @@ const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.create
   const tl=$$('#editor .line')[2];
   ok(!tl.classList.contains('fold')&&tl.querySelector('.tok')&&tl.querySelector('ul.toc'),'caret on [TOC]: unfolded, source and list both shown');
   // heading numbers flow into the toc
-  const tn=()=>[...$$('#editor .line')[2].querySelectorAll('ul.toc .tn')];
-  ok(tn().length===6&&w.getComputedStyle(tn()[0]).display==='none','toc numbers present but hidden by default');
+  const tn=()=>[...$('#editor .line.toc').querySelectorAll('ul.toc .tn')];
+  ok(tn().length===5&&w.getComputedStyle(tn()[0]).display==='none','toc numbers present (not on the title) but hidden by default');
   mclick('bPage','[data-n=hnums]'); await sleep(100);
   ok(w.getComputedStyle(tn()[0]).display==='inline','toc numbers shown with heading numbers on');
-  ok(tn().map(e=>e.textContent.trim()).join(' ')==='1. 1.1 1.2 1.3 1.3.1 1.4','toc numbers match the heading counters: '+tn().map(e=>e.textContent.trim()).join(' '));
-  mclick('bPage','[data-n=hfrom2]'); await sleep(100);
-  ok(tn().map(e=>e.textContent.trim()).join(' ')==='1. 2. 3. 3.1 4.'&&!$$('#editor .line')[2].querySelector('ul.toc li:first-child a .tn'),'from h2: title unnumbered, sections 1. 2. 3. 3.1 4.: '+tn().map(e=>e.textContent.trim()).join(' '));
-  mclick('bPage','[data-n=hfrom2]'); await sleep(50);
+  ok(tn().map(e=>e.textContent.trim()).join(' ')==='1. 2. 3. 3.1 4.'&&!$$('#editor .line')[2].querySelector('ul.toc li:first-child a .tn'),'one h1: title unnumbered, sections 1. 2. 3. 3.1 4.: '+tn().map(e=>e.textContent.trim()).join(' '));
   // outline hints
   mclick('bView','[data-n=outline]'); await sleep(100);
   const od=$$('#outline div');
   ok(od.length===6&&!od[0].classList.contains('warn')&&!od[1].classList.contains('warn'),'outline: 6 headings, title and first h2 clean: '+od.length);
   ok(!od.some(x=>x.classList.contains('warn')),'outline: no warnings for a clean hierarchy');
+  const nBefore=$$('#editor .line').length;
   caretIn(1,0); d.execCommand('insertText',false,'# Another title\n\n#### Deep\n'); await sleep(250);
   const od2=$$('#outline div');
   ok(od2[1].classList.contains('warn')&&/Second top-level/.test(od2[1].title),'second h1 flagged: '+od2[1].title);
+  ok(tn().slice(0,2).map(e=>e.textContent.trim()).join(' ')==='1. 2.','two h1s: toc numbers from h1 again: '+tn().slice(0,3).map(e=>e.textContent.trim()).join(' '));
   ok(od2[2].classList.contains('warn')&&/Skips from h1 to h4/.test(od2[2].title),'skipped level flagged: '+od2.map(x=>x.textContent+(x.classList.contains('warn')?'!':'')).join('|'));
-  key('z',{metaKey:true}); await sleep(150);
+  for(let i=0;i<8&&$$('#editor .line').length!==nBefore;i++){ key('z',{metaKey:true}); await sleep(120); }
+  ok($$('#editor .line').length===nBefore,'undo restores the document');
   mclick('bView','[data-n=outline]');
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
@@ -81,7 +81,7 @@ const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.create
   ok(/<h1 id="top">Top<\/h1>/.test(html),'export h1 id');
   ok(/<h2 id="second-part">/.test(html)&&/<h2 id="second-part-1">/.test(html)&&/<h3 id="bold-co">/.test(html),'export duplicate and punctuation ids match the editor');
   ok(/<ul class="toc">.*href="#far-down"/.test(html)&&!/data-line/.test(html),'export toc without editor-only attributes');
-  ok(/<body class="hnums">/.test(html)&&/<span class="tn">1\.3\.1 <\/span>Bold/.test(html),'export toc carries numbers under body.hnums');
+  ok(/<body class="hnums hfrom2">/.test(html)&&/<span class="tn">3\.1 <\/span>Bold/.test(html),'export toc carries numbers under body.hnums');
   ok(/<a href="#second-part-1" target="_blank"/.test(html)||/<a href="#second-part-1"/.test(html),'export keeps internal link');
   w.localStorage.clear();
   document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
