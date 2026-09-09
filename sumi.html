@@ -354,6 +354,7 @@ mark{background:var(--mark); color:inherit; padding:.05em .15em; border-radius:3
 .fn{font-size:.7em; vertical-align:super; color:var(--accent); font-family:var(--sans)}
 .line.active .fn{display:none}
 .alert{border-left-width:3px}
+.quote.alert{font-style:normal}
 .alabel{font-family:var(--sans); font-size:.8em; font-weight:600; font-style:normal; letter-spacing:.01em}
 .a-note{border-left-color:#4a7d9e} .a-note .alabel{color:#4a7d9e}
 .a-tip{border-left-color:#4a7d6f} .a-tip .alabel{color:#4a7d6f}
@@ -777,7 +778,7 @@ function scan(lines) {
   const out = [];
   let inCode = false, tick = '', inMath = false, mer = false;
   let blk = 0, tEnd = -1, listCtx = false, prevBlank = true;
-  let codeFrom = 0, codeLang = '', eq = 0;
+  let codeFrom = 0, codeLang = '', eq = 0, quoteAlert = null, prevQuote = false;
   let fmEnd = -1;
   const seen = {}; headings = [];
   if (lines[0] === '---') fmEnd = lines.findIndex((x, j) => j > 0 && /^(---|\.\.\.)\s*$/.test(x));
@@ -837,6 +838,14 @@ function scan(lines) {
       }
     }
 
+    /* GitHub alerts: [!NOTE] counts only on the first line of a blockquote, and
+       the kind then applies to every following quote line of the same block. */
+    if (f.type === 'quote') {
+      if (f.alert && prevQuote) { f.cls = f.cls.replace(/ alert a-\w+/, ''); delete f.alert; }
+      else if (!f.alert && prevQuote && quoteAlert) { f.akind = quoteAlert; f.cls += ' alert a-' + quoteAlert.toLowerCase(); }
+      quoteAlert = f.alert || (prevQuote ? quoteAlert : null);
+      prevQuote = true;
+    } else { prevQuote = false; quoteAlert = null; }
     if (f.type === 'h') { f.slug = slugify(f.text, seen); headings.push({ i, level: f.level, text: f.text, slug: f.slug }); }
     if (f.type === 'ul' || f.type === 'ol' || f.type === 'task') listCtx = true;
     else if (f.type === 'empty') prevBlank = true;

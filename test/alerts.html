@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
+const src=['# Alerts','','> [!NOTE]','> Body line one','>','> Body after a blank quote line','','> [!tip]','> lowercase kind','','> [!IMPORTANT]','> important body','','> [!WARNING]','> warning body','','> [!CAUTION]','> caution body','','> [!FOO]','> unknown kind stays a quote','','> plain quote first','> [!NOTE]','> marker not on the first line is literal','','> [!NOTE] trailing text','> not an alert either','','after'];
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(src.join('\n'),'a.md');
+  const L=$$('#editor .line');
+  const cls=i=>L[i].className.replace('line ','');
+  const border=i=>w.getComputedStyle(L[i]).borderLeftColor;
+  const col={note:'rgb(74, 125, 158)',tip:'rgb(74, 125, 111)',important:'rgb(122, 90, 160)',warning:'rgb(176, 139, 58)',caution:'rgb(180, 84, 74)'};
+  ok(/alert a-note/.test(cls(2))&&L[2].querySelector('.alabel').textContent==='Note'&&L[2].querySelector('.alabel').hasAttribute('data-x'),'NOTE marker line: class, label, data-x');
+  ok(/alert a-note/.test(cls(3))&&/alert a-note/.test(cls(4))&&/alert a-note/.test(cls(5)),'NOTE body lines carry the alert class, including the blank > line: '+cls(3)+' / '+cls(4));
+  ok(border(2)===col.note&&border(3)===col.note&&border(5)===col.note,'NOTE border colour on marker and body: '+border(3));
+  ok(w.getComputedStyle(L[3]).fontStyle==='normal','alert body is upright, not italic');
+  ok(L[3].textContent==='> Body line one','body line text intact');
+  ok(/a-tip/.test(cls(7))&&L[7].querySelector('.alabel').textContent==='Tip'&&border(8)===col.tip,'lowercase [!tip] accepted, labelled Tip, body coloured');
+  ok(/a-important/.test(cls(10))&&border(11)===col.important&&L[10].querySelector('.alabel').textContent==='Important','IMPORTANT');
+  ok(/a-warning/.test(cls(13))&&border(14)===col.warning&&L[13].querySelector('.alabel').textContent==='Warning','WARNING');
+  ok(/a-caution/.test(cls(16))&&border(17)===col.caution&&L[16].querySelector('.alabel').textContent==='Caution','CAUTION');
+  ok(!/alert/.test(cls(19))&&!/alert/.test(cls(20))&&!L[19].querySelector('.alabel')&&w.getComputedStyle(L[20]).fontStyle==='italic','[!FOO] is an ordinary quote');
+  ok(!/alert/.test(cls(22))&&!/alert/.test(cls(23))&&!L[23].querySelector('.alabel')&&L[23].textContent==='> [!NOTE]','[!NOTE] on a later quote line is literal');
+  ok(!/alert/.test(cls(26))&&!L[26].querySelector('.alabel'),'[!NOTE] with trailing text is not an alert');
+  ok(!/alert|quote/.test(cls(29)),'paragraph after the quotes is clean');
+  // caret on the marker line reveals the marker, label stays
+  const r=d.createRange(); r.setStart(L[2].firstChild.firstChild||L[2].firstChild,0); r.collapse(true); const sel=w.getSelection(); sel.removeAllRanges(); sel.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); await sleep(100);
+  ok(L[2].classList.contains('active')&&w.getComputedStyle(L[2].querySelectorAll('.tok')[1]).fontSize!=='0px','active marker line reveals [!NOTE]');
+  // export
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  mclick('bFile','[data-act=html]'); await sleep(150); const html=await blob.text();
+  ok(/<blockquote class="alert a-note"><p class="alert-label">Note<\/p>\n?<p>Body line one<\/p>\n?<p>Body after a blank quote line<\/p><\/blockquote>/.test(html),'export NOTE block with two paragraphs');
+  ok(/class="alert a-tip"><p class="alert-label">Tip<\/p>/.test(html)&&/a-important/.test(html)&&/a-warning/.test(html)&&/a-caution/.test(html),'export all five kinds');
+  ok(/<blockquote><p>\[!FOO\]/.test(html)||/<blockquote><p>\[!FOO\]<\/p>/.test(html),'export leaves [!FOO] literal: '+(html.match(/<blockquote>[^]{0,40}FOO/)||[''])[0]);
+  ok(/<blockquote><p>plain quote first\s*\[!NOTE\]/.test(html)||/plain quote first<\/p>[^]{0,10}<p>\[!NOTE\]/.test(html)||/plain quote first \[!NOTE\]/.test(html),'export keeps a later [!NOTE] literal');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

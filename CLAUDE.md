@@ -102,6 +102,16 @@ source text, only wrapped in spans, which is why invariant 1 holds without
 them and is injected into both the editor and the export. Mermaid fences and
 indented code are not highlighted.
 
+## Alerts
+
+`classify()` recognises `> [!NOTE]` (any case, the marker alone on the line)
+and sets `f.alert`; `scan()` then applies GitHub's rules: the marker counts
+only on the first line of a blockquote (later ones are literal text), and
+the kind is carried to every following `>` line of the same block as
+`f.akind` plus the `alert a-<kind>` classes, so border colour and upright
+text cover the whole block. The label is a `data-x` span. The export applies
+the same first-line rule on the collected block.
+
 ## Headings, slugs, TOC and internal links
 
 `scan()` gives every heading a GitHub-style slug (`slugify`: lowercase, punctuation
@@ -251,6 +261,7 @@ node test/cdp.mjs http://localhost:8765/test/toc.html        # [TOC], slugs, int
 node test/cdp.mjs http://localhost:8765/test/source.html     # source mode
 node test/cdp.mjs http://localhost:8765/test/docs.html       # documents: migration, drawer, switching, two tabs
 node test/cdp.mjs http://localhost:8765/test/history.html    # versions, diff, restore, thinning, backup round trip
+node test/cdp.mjs http://localhost:8765/test/alerts.html     # GitHub alerts, all five kinds, editor and export
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
