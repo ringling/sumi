@@ -111,10 +111,21 @@ function, so `id` attributes agree with the editor. Headings inside blockquotes
 get no id (the export recursion is not `top`).
 
 A `[TOC]` line is a one-line block (`kind:'toc'`) whose preview is `tocHtml()`
-over `headings`; the preview key is the headings list, so it follows edits. In
-the editor each entry carries `data-line`, and a click on any `a[href^="#"]`
+over `headings`; the preview key is the headings list plus the from-h2 flag, so
+it follows edits and the numbering toggles. Entries carry the heading number in
+a `.tn` span shown only under `body.hnums`; `tocHtml()` counts exactly as the
+CSS counters do, including `body.hfrom2` (title h1 unnumbered, h2 is the top
+level), so list and page always agree. In the editor each entry carries
+`data-line`, and a click on any `a[href^="#"]`
 inside the editor is intercepted: TOC entries jump by line, text links by slug
 lookup, both through `jumpToLine()` which the outline drawer uses too.
+
+## Outline hints
+
+`buildOutline()` marks a second h1 and any skipped level (h1 → h3) with
+`.warn`, a faint dot and a title explaining why. Informational only; Sumi
+never enforces heading structure. The convention it points at is one h1 as
+the title, `##` for sections, no gaps.
 
 ## Source mode
 

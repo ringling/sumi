@@ -169,6 +169,7 @@ body.outline #outline{transform:none}
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 #outline div:hover{background:var(--paper-2); color:var(--ink)}
+#outline div.warn::after{content:'•'; color:#b08b3a; margin-left:.45em}
 #outline div.d2{padding-left:18px}
 #outline div.d3{padding-left:30px; font-size:12px}
 #outline div.d4,#outline div.d5,#outline div.d6{padding-left:42px; font-size:12px}
@@ -345,6 +346,14 @@ body.hnums .line.h4::before{content:counter(h1) '.' counter(h2) '.' counter(h3) 
 body.hnums .line.h5::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
 body.hnums .line.h6::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
 body.hnums .h::before{color:var(--ink-soft)}
+/* from h2: the title h1 is unnumbered and does not restart the sections */
+body.hnums.hfrom2 .line.h1{counter-increment:none; counter-reset:none}
+body.hnums.hfrom2 .line.h1::before{content:none}
+body.hnums.hfrom2 .line.h2::before{content:counter(h2) '. '}
+body.hnums.hfrom2 .line.h3::before{content:counter(h2) '.' counter(h3) ' '}
+body.hnums.hfrom2 .line.h4::before{content:counter(h2) '.' counter(h3) '.' counter(h4) ' '}
+body.hnums.hfrom2 .line.h5::before{content:counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
+body.hnums.hfrom2 .line.h6::before{content:counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
 .prev{position:relative}
 .eqno{display:none; position:absolute; right:0; top:50%; transform:translateY(-50%);
   font-family:var(--sans); font-size:.85em; color:var(--ink-soft)}
@@ -459,7 +468,7 @@ kbd{
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
     <tr><td>View</td><td>outline, focus, typewriter, source code; line width and typeface</td></tr>
-    <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3) and equation numbers</td></tr>
+    <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3, optionally from h2) and equation numbers</td></tr>
     <tr><td>File</td><td>open, save, copy markdown, export HTML, print or PDF</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
     <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
@@ -511,11 +520,14 @@ function slugify(t, seen) {
 function tocHtml(items, clean) {
   if (!items.length) return '<ul class="toc"><li class="empty">Table of contents — headings appear here</li></ul>';
   const min = Math.min(...items.map(h => h.level));
-  const c = [0, 0, 0, 0, 0, 0, 0];
+  const c = [0, 0, 0, 0, 0, 0, 0], from = document.body.classList.contains('hfrom2') ? 2 : 1;
   return '<ul class="toc">' + items.map(h => {
-    c[h.level]++; for (let k = h.level + 1; k <= 6; k++) c[k] = 0;
-    const num = h.level === 1 ? c[1] + '.' : c.slice(1, h.level + 1).join('.');
-    return `<li style="--d:${h.level - min + 1}"><a href="#${att(h.slug)}"${clean ? '' : ` data-line="${h.i}"`}><span class="tn">${num} </span>${esc(plainText(h.text))}</a></li>`;
+    let num = '';
+    if (h.level >= from) {
+      c[h.level]++; for (let k = h.level + 1; k <= 6; k++) c[k] = 0;
+      num = h.level === from ? c[from] + '.' : c.slice(from, h.level + 1).join('.');
+    }
+    return `<li style="--d:${h.level - min + 1}"><a href="#${att(h.slug)}"${clean ? '' : ` data-line="${h.i}"`}>${num ? `<span class="tn">${num} </span>` : ''}${esc(plainText(h.text))}</a></li>`;
   }).join('') + '</ul>';
 }
 
@@ -925,7 +937,7 @@ function renderPreviews(deep) {
     let a = i;
     while (a > 0 && flags[a - 1] && flags[a - 1].blk === f.blk) a--;
     const body = f.kind === 'table' ? lines.slice(a, i + 1).join('\n')
-               : f.kind === 'toc'   ? JSON.stringify(headings.map(h => [h.level, h.text, h.slug]))
+               : f.kind === 'toc'   ? JSON.stringify(headings.map(h => [h.level, h.text, h.slug])) + (document.body.classList.contains('hfrom2') ? '|2' : '')
                                     : lines.slice(a + 1, i).join('\n').trim();
     if (host.dataset.src === body) continue;
     if (f.kind === 'mermaid') {
@@ -1171,10 +1183,16 @@ function buildOutline() {
   });
   box.innerHTML = '';
   if (!items.length) { box.innerHTML = '<div class="empty">Headings appear here as you write them.</div>'; return; }
+  /* Structure hints, informational only: a second top-level heading, or a level
+     that skips one (h1 → h3). Both trip accessibility checkers and linters. */
+  let h1s = 0, prev = 0;
   for (const it of items) {
     const d = document.createElement('div');
     d.className = 'd' + it.level;
     d.textContent = plainText(it.t);
+    if (it.level === 1 && ++h1s > 1) { d.classList.add('warn'); d.title = 'Second top-level heading. Convention is one h1 as the title, then ##.'; }
+    else if (prev && it.level > prev + 1) { d.classList.add('warn'); d.title = `Skips from h${prev} to h${it.level}. Screen readers and linters expect no gaps.`; }
+    prev = it.level;
     d.onclick = () => jumpToLine(it.i);
     box.appendChild(d);
   }
@@ -1355,13 +1373,14 @@ addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY 
 $('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
 /* View-state classes on body. The menus read them back, so there is no button
    state to keep in sync; the persisted ones are written on every change. */
-const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos'];
+const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'hfrom2', 'eqnos'];
 function toggle(cls) {
   const on = document.body.classList.toggle(cls);
   if (PERSISTED.includes(cls)) storeSettings();
   if (cls === 'focus' && !on) for (const el of editor.children) el.classList.remove('near');
   if (cls === 'focus' || cls === 'typewriter') updateActive();
   if (cls === 'outline') buildOutline();
+  if (cls === 'hfrom2') renderPreviews();
   return on;
 }
 
@@ -1404,7 +1423,7 @@ const menuButton = (id, build) => { $('#' + id).onclick = e => { e.stopPropagati
 const check = (cls, label, hint) => ({ label, hint, on: document.body.classList.contains(cls), data: `data-n="${cls}"`, act: () => toggle(cls) });
 const cycle = (key, label, act) => ({ label, keep: true, data: `data-v="${key}"`, act });
 
-const NUMS = [['linenos', 'Code line numbers'], ['hnums', 'Heading numbers'], ['eqnos', 'Equation numbers']];
+const NUMS = [['linenos', 'Code line numbers'], ['hnums', 'Heading numbers'], ['hfrom2', 'Number from h2, title unnumbered'], ['eqnos', 'Equation numbers']];
 menuButton('bView', () => [
   check('outline', 'Outline', '⌘\\'),
   check('focus', 'Focus mode', '⌘⇧F'),
@@ -1792,6 +1811,11 @@ body.hnums h3::before{content:counter(h1) '.' counter(h2) '.' counter(h3) ' '}
 body.hnums h4::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) ' '}
 body.hnums h5::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
 body.hnums h6::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
+body.hnums.hfrom2 h1{counter-increment:none;counter-reset:none}body.hnums.hfrom2 h1::before{content:none}
+body.hnums.hfrom2 h2::before{content:counter(h2) '. '}body.hnums.hfrom2 h3::before{content:counter(h2) '.' counter(h3) ' '}
+body.hnums.hfrom2 h4::before{content:counter(h2) '.' counter(h3) '.' counter(h4) ' '}
+body.hnums.hfrom2 h5::before{content:counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
+body.hnums.hfrom2 h6::before{content:counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
 pre.mermaid{background:none;text-align:center}${HL_CSS}@page{margin:${MARGINS[mgi][1]}}
 @media print{
  :root{--paper:#fff;--paper-2:#f0f0f0;--ink:#000;--ink-soft:#444;--ink-faint:#777;--rule:#ccc;--code-bg:#f3f3f3;--mark:#efe9a4}
@@ -1804,7 +1828,7 @@ pre.mermaid{background:none;text-align:center}${HL_CSS}@page{margin:${MARGINS[mg
  h1,h2,h3,h4{break-after:avoid}
  p{orphans:3;widows:3}
 ${pages ? ' h1,h2{break-before:page}\n h1:first-child,h2:first-child{break-before:auto}\n' : ''}}
-</style></head><body class="${['hnums', 'eqnos'].filter(c => document.body.classList.contains(c)).join(' ')}">
+</style></head><body class="${['hnums', 'hfrom2', 'eqnos'].filter(c => document.body.classList.contains(c)).join(' ')}">
 ${mdToHtml(text, true)}
 </body></html>`;
   download(new Blob([doc], { type: 'text/html' }), title + '.html');
