@@ -11,9 +11,10 @@ const T='\x60\x60\x60';
 const md=['# T','',T+'js','// note','const x = 1; /* start','end */ return x;','',T,'',T+'python','def f():','    """doc','    more"""',"    return 'a'",T,'',T+'nosuchlang','foo bar',T,'',T+'mermaid','graph TD; A-->B',T,''].join('\n');
 const srcLines=md.split('\n');
 const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(300); };
-const pick=name=>{ $('#bTheme').click(); $('#themes .mi[data-t='+name+']').click(); };
+const pick=name=>{ $('#bTheme').click(); $('#menu .mi[data-t='+name+']').click(); };
 (async()=>{
-  await loadFrame(); bind();
+  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
   await drop(md,'t.md');
   let tries=0; while(!$('.line.code .hljs-keyword') && tries++<40) await sleep(250);
   ok(!!$('.line.code .hljs-keyword'),'highlight.js loaded and keywords wrapped (waited '+tries*250+'ms)');

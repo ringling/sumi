@@ -1,0 +1,84 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:800px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,400); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const T='\x60\x60\x60';
+const src=['---','title: Aftaler','tags:','  - jura','  - v13','---','# Top','','Para one[^a].','','## Sub','','Plain line','',T+'js','const a = 1;','const b = 2;',T,'','$$','x = 1','$$','','$$','y = 2','$$','','[^a]: The note text',''];
+const md=src.join('\n');
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(300); };
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.createRange(); const tn=[...el.childNodes].find(n=>n.nodeType===3)||el; r.setStart(tn, tn.nodeType===3?Math.min(off,tn.length):0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
+const nums=name=>{ $('#bNums').click(); $('#menu .mi[data-n='+name+']').click(); };
+const lineText=i=>$$('#editor .line')[i].textContent;
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(md,'t.md'); await sleep(200);
+  caretIn(8,0); await sleep(100);
+  // front matter
+  const L=$$('#editor .line');
+  ok(L[0].classList.contains('fm')&&L[5].classList.contains('fm'),'front matter lines classed fm');
+  ok(L[0].classList.contains('fold')&&!!L[5].querySelector('.fmcard'),'front matter folded to a card on its last line');
+  ok(/title.*Aftaler.*tags.*jura, v13/.test(L[5].querySelector('.fmcard').textContent),'card shows title and joined tags: '+L[5].querySelector('.fmcard').textContent);
+  ok(L[5].querySelector('.fmcard').closest('[data-x]')!==null,'card lives inside a data-x preview');
+  ok($$('#editor .line .src').slice(0,6).every((e,i)=>e.textContent===src[i]),'front matter source text intact');
+  ok(!L[5].classList.contains('hr'),'closing --- is not a horizontal rule');
+  // footnote hover title
+  const sup=L[8].querySelector('sup.fn');
+  ok(sup&&sup.title==='The note text','footnote reference carries the definition as title: '+(sup&&sup.title));
+  // numbers menu
+  $('#bNums').click();
+  ok($('#menu').classList.contains('show')&&$$('#menu .mi').length===3&&$('#bNums').getAttribute('aria-expanded')==='true','Numbers menu opens with 3 items');
+  $('#menu .mi[data-n=linenos]').click();
+  ok(d.body.classList.contains('linenos')&&!$('#menu').classList.contains('show'),'line numbers toggled on, menu closed');
+  const code=$$('#editor .line.code');
+  ok(/counter\(code\)/.test(w.getComputedStyle(code[0],'::before').content)&&w.getComputedStyle(code[0],'::before').position==='absolute','code lines get a counter ::before (value checked in the screenshot)');
+  ok(code[0].textContent==='const a = 1;','numbering adds no text to the line');
+  nums('hnums');
+  ok(w.getComputedStyle(L[6],'::before').content==='counter(h1) ". "','h1 gets a counter ::before: '+w.getComputedStyle(L[6],'::before').content);
+  ok(w.getComputedStyle(L[10],'::before').content==='counter(h1) "." counter(h2) " "','h2 gets a nested counter ::before');
+  ok(w.getComputedStyle(L[8],'::before').content==='none','paragraph gets no counter');
+  nums('eqnos');
+  const eq=$$('#editor .eqno');
+  ok(eq.length===2&&eq[0].textContent==='(1)'&&eq[1].textContent==='(2)','equations numbered (1), (2)');
+  ok(w.getComputedStyle(eq[1]).display==='block','equation number visible');
+  nums('eqnos'); ok(w.getComputedStyle(eq[1]).display==='none','equation number hidden when toggled off');
+  nums('eqnos');
+  // list cycling on "Plain line" (index 12)
+  caretIn(12,3); await sleep(50);
+  key('L',{metaKey:true,shiftKey:true}); await sleep(80);
+  ok(lineText(12)==='- Plain line','cmd-shift-L: plain -> bullet: '+JSON.stringify(lineText(12)));
+  key('L',{metaKey:true,shiftKey:true}); await sleep(80);
+  ok(lineText(12)==='1. Plain line','bullet -> numbered: '+JSON.stringify(lineText(12)));
+  key('L',{metaKey:true,shiftKey:true}); await sleep(80);
+  ok(lineText(12)==='- [ ] Plain line','numbered -> task: '+JSON.stringify(lineText(12)));
+  key('L',{metaKey:true,shiftKey:true}); await sleep(80);
+  ok(lineText(12)==='Plain line','task -> plain: '+JSON.stringify(lineText(12)));
+  const s0=w.getSelection(); const rr=d.createRange(); rr.selectNodeContents($$('#editor .line')[12]); rr.setEnd(s0.anchorNode,s0.anchorOffset);
+  ok(rr.toString().length===3,'caret stays at offset 3 through the cycle: '+rr.toString().length);
+  key('z',{metaKey:true}); await sleep(80);
+  ok(lineText(12)==='- [ ] Plain line','undo restores the previous list type');
+  // persistence of the whole settings record
+  $('#bWide').click(); $('#bMargin').click(); $('#bPages').click(); await sleep(50);
+  const st=JSON.parse(w.localStorage.getItem('sumi:settings')||'null');
+  ok(st&&st.linenos===true&&st.hnums===true&&st.eqnos===true&&st.pages===true&&st.width===2&&st.margin===2,'settings record: '+JSON.stringify(st));
+  // export
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  $('#bHtml').click(); await sleep(100); const html=await blob.text();
+  ok(!/Aftaler|jura/.test(html),'export drops the front matter');
+  ok(/<body class="hnums eqnos">/.test(html),'export body carries numbering classes');
+  ok(/<pre class="linenos"><code class="language-js"><span class="ln">/.test(html),'export wraps code lines for numbering');
+  ok(/<span class="eqno">\(2\)<\/span>/.test(html),'export numbers equations');
+  ok(/title="The note text"/.test(html),'export footnote ref has a title');
+  f.src='/sumi.html?2'; await loadFrame(); await sleep(400); bind();
+  ok(d.body.classList.contains('linenos')&&d.body.classList.contains('hnums')&&d.body.classList.contains('pagebreak'),'toggles restored after reload');
+  ok($('#bWide').textContent==='Width: wide'&&$('#bMargin').textContent==='Margin: none'&&$('#bPages').getAttribute('aria-pressed')==='true','width, margin, pages restored: '+$('#bWide').textContent+' / '+$('#bMargin').textContent);
+  w.localStorage.removeItem('sumi:settings'); w.localStorage.removeItem('sumi:draft');
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

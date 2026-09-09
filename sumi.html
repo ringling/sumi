@@ -139,19 +139,19 @@ button.b:hover{background:var(--paper-2); color:var(--ink)}
 button.b[aria-pressed="true"]{background:var(--accent); color:var(--paper)}
 button.b:focus-visible, #name:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
 .dot{width:1px;height:16px;background:var(--rule);margin:0 6px}
-#themes{
+#menu{
   position:fixed; top:46px; z-index:25; display:none; min-width:13em; padding:6px;
   background:var(--paper); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow);
   font-family:var(--sans); font-size:12.5px;
 }
-#themes.show{display:block}
-#themes .mi{
+#menu.show{display:block}
+#menu .mi{
   display:block; width:100%; text-align:left; font:inherit; color:var(--ink); background:none;
   border:0; padding:6px 10px 6px 26px; border-radius:6px; cursor:pointer; position:relative;
 }
-#themes .mi:hover,#themes .mi:focus-visible{background:var(--paper-2); outline:none}
-#themes .mi.on::before{content:'✓'; position:absolute; left:9px; color:var(--accent)}
-#themes hr{border:0; border-top:1px solid var(--rule); margin:6px 0}
+#menu .mi:hover,#menu .mi:focus-visible{background:var(--paper-2); outline:none}
+#menu .mi.on::before{content:'✓'; position:absolute; left:9px; color:var(--accent)}
+#menu hr{border:0; border-top:1px solid var(--rule); margin:6px 0}
 
 #outline{
   position:fixed; top:46px; bottom:0; left:0; width:230px; z-index:15;
@@ -296,6 +296,42 @@ mark{background:var(--mark); color:inherit; padding:.05em .15em; border-radius:3
 .line.fold{min-height:0; background:none; padding:0; margin:0}
 .line.fold .src{display:none}
 
+/* ── numbering (all class toggles on body; counters and ::before add no DOM text) ── */
+body.linenos .fence.open{counter-reset:code}
+body.linenos .line.code:not(.fold){padding-left:3.4em}
+body.linenos .line.code:not(.fold)::before{
+  counter-increment:code; content:counter(code);
+  position:absolute; left:0; width:2.6em; text-align:right;
+  color:var(--ink-faint); font-size:.85em;
+}
+body.hnums #editor{counter-reset:h1 h2 h3 h4 h5 h6}
+body.hnums .line.h1{counter-increment:h1; counter-reset:h2 h3 h4 h5 h6}
+body.hnums .line.h2{counter-increment:h2; counter-reset:h3 h4 h5 h6}
+body.hnums .line.h3{counter-increment:h3; counter-reset:h4 h5 h6}
+body.hnums .line.h4{counter-increment:h4; counter-reset:h5 h6}
+body.hnums .line.h5{counter-increment:h5; counter-reset:h6}
+body.hnums .line.h6{counter-increment:h6}
+body.hnums .line.h1::before{content:counter(h1) '. '}
+body.hnums .line.h2::before{content:counter(h1) '.' counter(h2) ' '}
+body.hnums .line.h3::before{content:counter(h1) '.' counter(h2) '.' counter(h3) ' '}
+body.hnums .line.h4::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) ' '}
+body.hnums .line.h5::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
+body.hnums .line.h6::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
+body.hnums .h::before{color:var(--ink-soft)}
+.prev{position:relative}
+.eqno{display:none; position:absolute; right:0; top:50%; transform:translateY(-50%);
+  font-family:var(--sans); font-size:.85em; color:var(--ink-soft)}
+body.eqnos .eqno{display:block}
+
+/* ── front matter: a YAML block at the top folds to a small card ── */
+.fm{font-family:var(--mono); font-size:.84em; color:var(--ink-soft); background:var(--code-bg); padding:0 1em; line-height:1.6; min-height:1.6em}
+.fmcard{
+  display:grid; grid-template-columns:max-content 1fr; gap:.1em 1.2em;
+  font-family:var(--sans); font-size:.8em; color:var(--ink-soft);
+  border:1px solid var(--rule); border-radius:7px; padding:.55em .9em; margin:0 0 1.4em;
+}
+.fmcard b{font-weight:500; color:var(--ink-faint)}
+
 /* ── help ────────────────────────────────────────────────────────────── */
 #help{
   position:fixed; inset:0; z-index:40; display:none;
@@ -325,7 +361,8 @@ kbd{
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
-  #bar,#outline,#count,#toast,#help,#themes{display:none!important}
+  #bar,#outline,#count,#toast,#help,#menu{display:none!important}
+  .fmcard{display:none}
   html,html[data-theme]{--paper:#fff; --paper-2:#f0f0f0; --ink:#000; --ink-soft:#444; --ink-faint:#777; --rule:#ccc; --code-bg:#f3f3f3; --mark:#efe9a4}
   /* compact, Typora-like page: sans, 10pt, tight leading, half-height blank lines */
   body{background:#fff; color:#000; --body:var(--sans); font-size:10pt; --lh:1.4}
@@ -367,12 +404,13 @@ kbd{
   <button class="b" id="bSave" title="Save markdown — Cmd S">Save</button>
   <button class="b" id="bMargin" title="Page margins: on screen, when printing and in PDF">Margin: narrow</button>
   <button class="b" id="bPages" aria-pressed="false" title="Start a new page at every # and ## when printing or exporting">Pages</button>
+  <button class="b" id="bNums" aria-haspopup="menu" aria-expanded="false" title="Code line numbers, heading numbers, equation numbers">Numbers</button>
   <button class="b" id="bHtml" title="Export HTML — Cmd Shift E">HTML</button>
   <button class="b" id="bHelp" title="Shortcuts — Cmd /">?</button>
 </div>
 
 <nav id="outline" aria-label="Document outline"></nav>
-<div id="themes" role="menu" aria-label="Theme"></div>
+<div id="menu" role="menu"></div>
 
 <div id="wrap"><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" role="textbox" aria-multiline="true"></div></div>
 
@@ -385,6 +423,7 @@ kbd{
     <tr><td><kbd>⌘B</kbd> <kbd>⌘I</kbd> <kbd>⌘K</kbd></td><td>bold, italic, link</td></tr>
     <tr><td><kbd>⌘⇧K</kbd></td><td>inline code</td></tr>
     <tr><td><kbd>⌘1</kbd>–<kbd>⌘6</kbd> <kbd>⌘0</kbd></td><td>heading level, plain paragraph</td></tr>
+    <tr><td><kbd>⌘⇧L</kbd></td><td>cycle list type — bullet, numbered, task, plain</td></tr>
     <tr><td><kbd>Tab</kbd> <kbd>⇧Tab</kbd></td><td>indent, outdent list item</td></tr>
     <tr><td><kbd>⌘\</kbd></td><td>outline</td></tr>
     <tr><td><kbd>⌘⇧F</kbd> <kbd>⌘⇧T</kbd></td><td>focus mode, typewriter mode</td></tr>
@@ -393,6 +432,9 @@ kbd{
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
     <tr><td>Pages</td><td>break to a new page at each # and ## when printing</td></tr>
+    <tr><td>Numbers</td><td>code line numbers, heading numbers (1.2.3), equation numbers</td></tr>
+    <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
+    <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
     <tr><td>Theme</td><td>Paper, Ink, GitHub, Whitey, Newsprint, Sepia, Night — <kbd>⌘⇧D</kbd> flips light/dark</td></tr>
     <tr><td>Custom theme</td><td>load a .css file from the Theme menu, or drop it on the window; see <kbd>themes/sample.css</kbd></td></tr>
     <tr><td>Width</td><td>line width on screen — narrow, regular, wide, max</td></tr>
@@ -484,8 +526,9 @@ function inline(s, clean) {
 
     if ((m = /^\[\^([^\]\s]+)\]/.exec(r)) && key(m[1]) in fnNum) {
       const n = fnNum[key(m[1])];
-      out += clean ? `<sup id="fnref-${att(m[1])}"><a href="#fn-${att(m[1])}">${n}</a></sup>`
-                   : T(m[0]) + `<sup class="fn" data-x contenteditable="false">${n}</sup>`;
+      const tip = ` title="${att(fnDefs[n - 1].text)}"`;
+      out += clean ? `<sup id="fnref-${att(m[1])}"><a href="#fn-${att(m[1])}"${tip}>${n}</a></sup>`
+                   : T(m[0]) + `<sup class="fn" data-x contenteditable="false"${tip}>${n}</sup>`;
       i += m[0].length; continue; }
 
     if ((m = /^\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/.exec(r))) {
@@ -599,14 +642,20 @@ function scan(lines) {
   const out = [];
   let inCode = false, tick = '', inMath = false, mer = false;
   let blk = 0, tEnd = -1, listCtx = false, prevBlank = true;
-  let codeFrom = 0, codeLang = '';
+  let codeFrom = 0, codeLang = '', eq = 0;
+  let fmEnd = -1;
+  if (lines[0] === '---') fmEnd = lines.findIndex((x, j) => j > 0 && /^(---|\.\.\.)\s*$/.test(x));
 
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
     let f;
     const fence = /^(\s*)(```+|~~~+)(.*)$/.exec(l);
 
-    if (fence && !inMath && (!inCode || fence[2][0] === tick)) {
+    if (i <= fmEnd) {
+      if (i === 0) blk++;
+      f = { type:'fm', cls:'fm', blk, kind:'front' };
+      if (i === fmEnd) f.last = true;
+    } else if (fence && !inMath && (!inCode || fence[2][0] === tick)) {
       const opening = !inCode;
       if (opening && fence[3].trim().toLowerCase() === 'mermaid') { mer = true; blk++; }
       f = { type:'fence', open:opening, ws:fence[1], ticks:fence[2], lang:fence[3] };
@@ -620,9 +669,9 @@ function scan(lines) {
       f = { type:'code', cls:'code' };
       if (mer) { f.blk = blk; f.kind = 'mermaid'; }
     } else if (/^\s*\$\$\s*$/.test(l)) {
-      if (!inMath) blk++;
+      if (!inMath) { blk++; eq++; }
       f = { type:'mathfence', cls:'mathblk ' + (inMath ? 'close' : 'open'), blk, kind:'math' };
-      if (inMath) f.last = true;
+      if (inMath) { f.last = true; f.eq = eq; }
       inMath = !inMath;
     } else if (inMath) {
       f = { type:'mathsrc', cls:'mathblk', blk, kind:'math' };
@@ -662,6 +711,12 @@ function scan(lines) {
   return out;
 }
 
+/* Export code: highlighted when possible; with line numbers on, each line is wrapped so CSS can count them. */
+function codeHtml(info, code) {
+  const html = hlHtml(info, code);
+  if (!document.body.classList.contains('linenos')) return html;
+  return hlSplit(html).map(l => `<span class="ln">${l}</span>`).join('\n');
+}
 function hlHtml(info, code) {
   const lang = hlLang(info);
   if (lang) { try { return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value; } catch (e) {} }
@@ -740,7 +795,8 @@ function renderLine(s, f) {
 function coreLine(s, f) {
   switch (f.type) {
     case 'mathfence': return `<span class="tok">${esc(s)}</span>`;
-    case 'mathsrc':   return esc(s);
+    case 'mathsrc':
+    case 'fm':        return esc(s);
     case 'underline': return `<span class="tok">${esc(s)}</span>`;
     case 'fence':
       return esc(f.ws) + `<span class="tok">${esc(f.ticks)}</span>` +
@@ -768,6 +824,18 @@ function coreLine(s, f) {
 }
 
 /* ── math & diagrams ──────────────────────────────────────────────────── */
+/* Naive YAML: top-level `key: value` rows, with indented `- item` lines joined onto the key above. */
+function frontCard(lines) {
+  const rows = [];
+  for (const l of lines) {
+    let m;
+    if ((m = /^([\w.-]+):\s*(.*)$/.exec(l))) rows.push([m[1], m[2].replace(/^["']|["']$/g, '')]);
+    else if ((m = /^\s+-\s*(.*)$/.exec(l)) && rows.length) rows[rows.length - 1][1] += (rows[rows.length - 1][1] ? ', ' : '') + m[1];
+  }
+  if (!rows.length) return '<div class="fmcard"><b>front matter</b><span></span></div>';
+  return '<div class="fmcard">' + rows.map(([k, v]) => `<b>${esc(k)}</b><span>${esc(v)}</span>`).join('') + '</div>';
+}
+
 function mathHtml(tex, display) {
   if (!window.katex) return '';
   try { return katex.renderToString(tex, { displayMode: display, throwOnError: false }); }
@@ -809,9 +877,12 @@ function renderPreviews(deep) {
     } else if (f.kind === 'table') {
       host.dataset.src = body;
       host.innerHTML = tableHtml(body.split('\n'));
+    } else if (f.kind === 'front') {
+      host.dataset.src = body;
+      host.innerHTML = frontCard(lines.slice(a + 1, i));
     } else {
       host.dataset.src = body;
-      host.innerHTML = body ? mathHtml(body, true) : '';
+      host.innerHTML = body ? mathHtml(body, true) + `<span class="eqno">(${f.eq})</span>` : '';
     }
   }
 }
@@ -1104,6 +1175,28 @@ function handleEnter() {
   setText(text.slice(0, sel.start) + '\n' + text.slice(sel.end), sel.start + 1);
 }
 
+/* ⌘⇧L: bullet → numbered → task → plain, on every line the selection touches. */
+function cycleList() {
+  const sel = selRange(); if (!sel) return;
+  const [a] = lineBounds(sel.start);
+  const [, b] = lineBounds(sel.end > sel.start ? sel.end - 1 : sel.end);
+  const parse = l => /^(\s*)(?:([-*+])\s+(\[[ xX]\]\s+)?|(\d+)[.)]\s+)?(.*)$/.exec(l);
+  const first = parse(text.slice(a, b).split('\n')[0]);
+  const kind = first[3] ? 'task' : first[2] ? 'ul' : first[4] ? 'ol' : 'none';
+  const next = { none: 'ul', ul: 'ol', ol: 'task', task: 'none' }[kind];
+  let n = 0;
+  const out = text.slice(a, b).split('\n').map(l => {
+    if (!l.trim()) return l;
+    const m = parse(l);
+    const pre = next === 'ul' ? '- ' : next === 'ol' ? (++n) + '. ' : next === 'task' ? '- [ ] ' : '';
+    return m[1] + pre + m[5];
+  }).join('\n');
+  if (sel.start === sel.end) {
+    const delta = out.split('\n')[0].length - (text.slice(a, b).split('\n')[0]).length;
+    setText(text.slice(0, a) + out + text.slice(b), Math.max(a, sel.start + delta));
+  } else setText(text.slice(0, a) + out + text.slice(b), a, a + out.length);
+}
+
 function indent(out) {
   const sel = selRange(); if (!sel) return;
   const [a, b] = lineBounds(sel.start);
@@ -1152,7 +1245,7 @@ editor.addEventListener('click', e => {
 
 const mod = e => e.metaKey || e.ctrlKey;
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { $('#help').classList.remove('show'); closeThemes(); return; }
+  if (e.key === 'Escape') { $('#help').classList.remove('show'); closeMenu(); return; }
   if (!mod(e)) {
     if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); indent(e.shiftKey); }
     return;
@@ -1173,6 +1266,7 @@ document.addEventListener('keydown', e => {
   if (k === 'b') { e.preventDefault(); wrapSel('**'); return; }
   if (k === 'i') { e.preventDefault(); wrapSel('*'); return; }
   if (k === 'k' && e.shiftKey) { e.preventDefault(); wrapSel('`'); return; }
+  if (k === 'l' && e.shiftKey) { e.preventDefault(); cycleList(); return; }
   if (k === 'k') {
     e.preventDefault();
     const sel = selRange(); if (!sel) return;
@@ -1190,9 +1284,45 @@ $('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
 function toggle(cls, btn) {
   const on = document.body.classList.toggle(cls);
   btn.setAttribute('aria-pressed', on);
+  if (cls === 'pagebreak') storeSettings();
   if (cls !== 'focus') return;
   if (!on) for (const el of editor.children) el.classList.remove('near');
 }
+
+/* One popup menu shared by the Theme and Numbers buttons. Items are
+   {label, on, act, data?}; a '-' item is a separator. */
+let menuBtn = null;
+function openMenu(btn, items) {
+  const m = $('#menu');
+  if (menuBtn === btn && m.classList.contains('show')) { closeMenu(); return; }
+  closeMenu();
+  m.innerHTML = items.map((it, i) => it === '-' ? '<hr>' :
+    `<button class="mi${it.on ? ' on' : ''}" role="${it.radio ? 'menuitemradio' : 'menuitemcheckbox'}" aria-checked="${!!it.on}" data-i="${i}"${it.data ? ' ' + it.data : ''}>${it.label}</button>`).join('');
+  m.onclick = e => {
+    const b = e.target.closest('.mi'); if (!b) return;
+    e.stopPropagation(); closeMenu(); items[+b.dataset.i].act();
+  };
+  m.style.left = Math.min(btn.getBoundingClientRect().left, innerWidth - 220) + 'px';
+  m.classList.add('show'); btn.setAttribute('aria-expanded', 'true'); menuBtn = btn;
+  $('#bar').classList.add('show');
+  (m.querySelector('.mi.on') || m.querySelector('.mi'))?.focus();
+}
+function closeMenu() {
+  $('#menu').classList.remove('show');
+  if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+  menuBtn = null;
+}
+addEventListener('click', closeMenu);
+
+/* Numbers menu: three body-class toggles, all persisted. */
+const NUMS = [['linenos', 'Code line numbers'], ['hnums', 'Heading numbers'], ['eqnos', 'Equation numbers']];
+$('#bNums').onclick = e => {
+  e.stopPropagation();
+  openMenu($('#bNums'), NUMS.map(([cls, label]) => ({
+    label, on: document.body.classList.contains(cls), data: `data-n="${cls}"`,
+    act: () => { document.body.classList.toggle(cls); storeSettings(); }
+  })));
+};
 $('#bOutline').onclick = () => { toggle('outline', $('#bOutline')); buildOutline(); };
 $('#bFocus').onclick = () => { toggle('focus', $('#bFocus')); updateActive(); };
 $('#bType').onclick = () => { toggle('typewriter', $('#bType')); updateActive(); };
@@ -1210,7 +1340,7 @@ function applyMargin() {
   $('#bMargin').textContent = 'Margin: ' + MARGINS[mgi][0];
   document.body.classList.toggle('nomargin', mgi === 2);
 }
-$('#bMargin').onclick = () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); };
+$('#bMargin').onclick = () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); storeSettings(); };
 applyMargin();
 
 /* Width is the page measure on screen: the text column plus the side margins,
@@ -1221,7 +1351,7 @@ function applyWidth() {
   document.documentElement.style.setProperty('--measure', WIDTHS[wi][1]);
   $('#bWide').textContent = 'Width: ' + WIDTHS[wi][0];
 }
-$('#bWide').onclick = () => { wi = (wi + 1) % WIDTHS.length; applyWidth(); };
+$('#bWide').onclick = () => { wi = (wi + 1) % WIDTHS.length; applyWidth(); storeSettings(); };
 applyWidth();
 const FONTS = [['Serif', 'var(--serif)'], ['Sans', 'var(--sans)'], ['Mono', 'var(--mono)']];
 let fi = 0;
@@ -1229,7 +1359,7 @@ function applyFont() {
   document.documentElement.style.setProperty('--body', FONTS[fi][1]);
   $('#bFont').textContent = FONTS[fi][0];
 }
-$('#bFont').onclick = () => { fi = (fi + 1) % FONTS.length; applyFont(); };
+$('#bFont').onclick = () => { fi = (fi + 1) % FONTS.length; applyFont(); storeSettings(); };
 
 /* ── themes ──────────────────────────────────────────────────────────────
    Built-in themes are CSS blocks on html[data-theme]; this table only names
@@ -1273,7 +1403,6 @@ function setTheme(name, save = true) {
   document.documentElement.style.removeProperty('--measure');
   syncTypography();
   $('#bTheme').textContent = 'Theme: ' + THEMES[name].label;
-  buildThemes();
   refreshDiagrams();
   if (save) storeSettings();
 }
@@ -1281,36 +1410,19 @@ function setUserCSS(css, save = true) {
   userCSS = css || '';
   userStyle.textContent = userCSS;
   syncTypography();
-  buildThemes();
   refreshDiagrams();
   if (save) storeSettings();
 }
 function toggleDark() { setTheme(THEMES[themeName].pair); }
 
-function buildThemes() {
-  $('#themes').innerHTML = Object.entries(THEMES).map(([k, t]) =>
-    `<button class="mi${k === themeName ? ' on' : ''}" role="menuitemradio" aria-checked="${k === themeName}" data-t="${k}">${t.label}</button>`).join('')
-    + '<hr><button class="mi" role="menuitem" data-act="css">Load .css theme…</button>'
-    + (userCSS ? '<button class="mi on" role="menuitem" data-act="clear">Remove custom css</button>' : '');
-}
-function closeThemes() { $('#themes').classList.remove('show'); $('#bTheme').setAttribute('aria-expanded', 'false'); }
 $('#bTheme').onclick = e => {
   e.stopPropagation();
-  const m = $('#themes'), open = !m.classList.contains('show');
-  m.style.left = Math.min($('#bTheme').getBoundingClientRect().left, innerWidth - m.offsetWidth - 8) + 'px';
-  m.classList.toggle('show', open);
-  $('#bTheme').setAttribute('aria-expanded', String(open));
-  if (open) { $('#bar').classList.add('show'); m.querySelector('.mi.on')?.focus(); }
+  const items = Object.entries(THEMES).map(([k, t]) =>
+    ({ label: t.label, on: k === themeName, radio: true, data: `data-t="${k}"`, act: () => setTheme(k) }));
+  items.push('-', { label: 'Load .css theme…', data: 'data-act="css"', act: () => $('#csspicker').click() });
+  if (userCSS) items.push({ label: 'Remove custom css', on: true, data: 'data-act="clear"', act: () => { setUserCSS(''); toast('Custom css removed'); } });
+  openMenu($('#bTheme'), items);
 };
-$('#themes').onclick = e => {
-  const b = e.target.closest('.mi'); if (!b) return;
-  e.stopPropagation();
-  if (b.dataset.t) setTheme(b.dataset.t);
-  else if (b.dataset.act === 'css') $('#csspicker').click();
-  else if (b.dataset.act === 'clear') { setUserCSS(''); toast('Custom css removed'); }
-  closeThemes();
-};
-addEventListener('click', closeThemes);
 $('#csspicker').onchange = e => {
   const f = e.target.files[0]; if (!f) return;
   f.text().then(t => { setUserCSS(t); toast('Loaded theme ' + f.name); });
@@ -1406,10 +1518,15 @@ function listHtml(nodes) {
   return html;
 }
 
+let eqN = 0;
 function mdToHtml(src, top) {
   const lines = src.split('\n');
   const out = [];
   let i = 0, para = [];
+  if (top) {
+    eqN = 0;
+    if (lines[0] === '---') { const e = lines.findIndex((x, j) => j > 0 && /^(---|\.\.\.)\s*$/.test(x)); if (e > 0) i = e + 1; }
+  }
   const flush = () => {
     if (!para.length) return;
     let h = '';
@@ -1432,7 +1549,7 @@ function mdToHtml(src, top) {
       i++;
       out.push(m[2].trim().toLowerCase() === 'mermaid'
         ? '<pre class="mermaid">' + esc(buf.join('\n')) + '</pre>'
-        : `<pre><code${m[2].trim() ? ' class="language-' + att(m[2].trim()) + '"' : ''}>` + hlHtml(m[2], buf.join('\n')) + '</code></pre>');
+        : `<pre${document.body.classList.contains('linenos') ? ' class="linenos"' : ''}><code${m[2].trim() ? ' class="language-' + att(m[2].trim()) + '"' : ''}>` + codeHtml(m[2], buf.join('\n')) + '</code></pre>');
       continue; }
 
     if (/^\s*\$\$\s*$/.test(l)) {
@@ -1440,7 +1557,7 @@ function mdToHtml(src, top) {
       const buf = [];
       while (i < lines.length && !/^\s*\$\$\s*$/.test(lines[i])) buf.push(lines[i++]);
       i++;
-      out.push('<div class="mathblock">' + mathHtml(buf.join('\n'), true) + '</div>');
+      out.push('<div class="mathblock">' + mathHtml(buf.join('\n'), true) + `<span class="eqno">(${++eqN})</span></div>`);
       continue; }
 
     if (!l.trim()) { flush(); i++; continue; }
@@ -1559,7 +1676,20 @@ blockquote.alert{font-style:normal}
 sup a{text-decoration:none}
 hr{border:0;border-top:1px solid var(--rule);margin:2em 0}
 mark{background:var(--mark)}
-.mathblock{margin:1.2em 0;overflow-x:auto}
+.mathblock{margin:1.2em 0;overflow-x:auto;position:relative}
+.eqno{display:none;position:absolute;right:0;top:50%;transform:translateY(-50%);font-family:var(--sans);font-size:.85em;color:var(--ink-soft)}
+body.eqnos .eqno{display:block}
+pre.linenos{counter-reset:code}
+pre.linenos .ln::before{counter-increment:code;content:counter(code);display:inline-block;width:2.2em;margin-right:1em;text-align:right;color:var(--ink-faint);user-select:none}
+body.hnums{counter-reset:h1 h2 h3 h4 h5 h6}
+body.hnums h1{counter-increment:h1;counter-reset:h2 h3 h4 h5 h6}body.hnums h2{counter-increment:h2;counter-reset:h3 h4 h5 h6}
+body.hnums h3{counter-increment:h3;counter-reset:h4 h5 h6}body.hnums h4{counter-increment:h4;counter-reset:h5 h6}
+body.hnums h5{counter-increment:h5;counter-reset:h6}body.hnums h6{counter-increment:h6}
+body.hnums h1::before{content:counter(h1) '. '}body.hnums h2::before{content:counter(h1) '.' counter(h2) ' '}
+body.hnums h3::before{content:counter(h1) '.' counter(h2) '.' counter(h3) ' '}
+body.hnums h4::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) ' '}
+body.hnums h5::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
+body.hnums h6::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
 pre.mermaid{background:none;text-align:center}${HL_CSS}@page{margin:${MARGINS[mgi][1]}}
 @media print{
  :root{--paper:#fff;--paper-2:#f0f0f0;--ink:#000;--ink-soft:#444;--ink-faint:#777;--rule:#ccc;--code-bg:#f3f3f3;--mark:#efe9a4}
@@ -1572,7 +1702,7 @@ pre.mermaid{background:none;text-align:center}${HL_CSS}@page{margin:${MARGINS[mg
  h1,h2,h3,h4{break-after:avoid}
  p{orphans:3;widows:3}
 ${pages ? ' h1,h2{break-before:page}\n h1:first-child,h2:first-child{break-before:auto}\n' : ''}}
-</style></head><body>
+</style></head><body class="${['hnums', 'eqnos'].filter(c => document.body.classList.contains(c)).join(' ')}">
 ${mdToHtml(text, true)}
 </body></html>`;
   download(new Blob([doc], { type: 'text/html' }), title + '.html');
@@ -1599,7 +1729,11 @@ async function recall(key) {
 }
 const store = () => persist(KEY, { name: $('#name').value, text });
 const load = () => recall(KEY);
-const storeSettings = () => persist(SKEY, { theme: themeName, css: userCSS });
+const storeSettings = () => persist(SKEY, {
+  theme: themeName, css: userCSS, width: wi, font: fi, margin: mgi,
+  pages: document.body.classList.contains('pagebreak'),
+  ...Object.fromEntries(NUMS.map(([cls]) => [cls, document.body.classList.contains(cls)])),
+});
 
 const WELCOME = `# Sumi
 
@@ -1675,7 +1809,15 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
 
 (async () => {
   const [saved, prefs] = await Promise.all([load(), recall(SKEY)]);
-  if (prefs) { if (prefs.css) setUserCSS(prefs.css, false); setTheme(prefs.theme, false); }
+  if (prefs) {
+    if (prefs.css) setUserCSS(prefs.css, false);
+    setTheme(prefs.theme, false);
+    if (prefs.width >= 0 && prefs.width < WIDTHS.length) { wi = prefs.width; applyWidth(); }
+    if (prefs.font >= 0 && prefs.font < FONTS.length) { fi = prefs.font; applyFont(); }
+    if (prefs.margin >= 0 && prefs.margin < MARGINS.length) { mgi = prefs.margin; applyMargin(); }
+    if (prefs.pages) { document.body.classList.add('pagebreak'); $('#bPages').setAttribute('aria-pressed', 'true'); }
+    for (const [cls] of NUMS) if (prefs[cls]) document.body.classList.add(cls);
+  }
   if (saved && saved.text) { $('#name').value = saved.name || 'untitled.md'; setText(saved.text, 0, 0, false); }
   else setText(WELCOME, 0, 0, false);
   record(text, { start: 0, end: 0 });

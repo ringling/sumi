@@ -22,6 +22,7 @@ try {
     if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); m.error ? p.rej(new Error(m.error.message)) : p.res(m.result); }
   };
   await send('Page.enable'); await send('Runtime.enable');
+  await send('Network.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true });
   await send('Page.navigate', { url });
   let text = '';
   for (let i = 0; i < 120; i++) {

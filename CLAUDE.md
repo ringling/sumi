@@ -52,7 +52,8 @@ re-adds them and must be called after any render. This already caused one bug
 
 **5. Block previews use the fold mechanism, not a different one.**
 
-Tables, ```` ```mermaid ```` blocks and `$$…$$` blocks are runs of lines sharing
+Tables, ```` ```mermaid ```` blocks, `$$…$$` blocks and a YAML front matter block
+at the top are runs of lines sharing
 a `blk` id assigned in `scan()`. The last line of a run gets `f.last` and holds a
 `<span class="prev" data-x>`. When the caret is outside the run, every line in it
 gets `.fold`, which hides `.src` and collapses the line to zero height, leaving
@@ -75,6 +76,7 @@ Add a new block type by giving it a `blk`, a `kind`, and a branch in
 | document scan | `scan()` — stateful pass: fences, math, tables, setext, refs |
 | line rendering | `renderLine` / `coreLine` |
 | syntax highlighting | `hlLang`, `hlRun`, `hlBlock`, `hlSplit`, `HL_CSS` |
+| chrome behaviour | `toggle`, the shared `openMenu` popup, the Numbers menu |
 | math & diagrams | KaTeX, Mermaid, `renderPreviews` |
 | DOM <-> text | the three walkers. Treat as load-bearing |
 | render / state | reconciliation, history, `setText`, `sync` |
@@ -99,6 +101,26 @@ source text, only wrapped in spans, which is why invariant 1 holds without
 `data-x`. Colours are the `--hl-*` tokens; `HL_CSS` maps the hljs classes onto
 them and is injected into both the editor and the export. Mermaid fences and
 indented code are not highlighted.
+
+## Numbering and other class toggles
+
+Code line numbers, heading numbers and equation numbers are body classes
+(`linenos`, `hnums`, `eqnos`) driven purely by CSS counters and `::before`,
+so they add nothing to the DOM and need no re-render. The equation label is a
+real `<span class="eqno">` inside the `data-x` preview, numbered by `f.eq`
+from `scan()`, and only shown by the class. Chrome does not resolve
+`counter()` in `getComputedStyle`, so the harness checks the rule exists and
+the screenshot checks the value. Export mirrors all three with the same
+counters on `<pre class="linenos">` (one `<span class="ln">` per line, cut
+with `hlSplit`), `body.hnums` and `body.eqnos`.
+
+The Theme and Numbers buttons share one popup, `openMenu(btn, items)`, which
+builds `#menu` lazily on each open. Tests must open the menu before querying
+its items.
+
+Settings record (`sumi:settings`): theme, custom CSS, width, font, margin,
+pages and the three numbering flags. Width and font store `-1` when a theme's
+own value is in effect and are then left to the theme on restore.
 
 ## Themes
 
@@ -126,7 +148,8 @@ over the DevTools protocol against a harness page served from the project:
 python3 -m http.server 8765 &
 node test/cdp.mjs http://localhost:8765/test/themes.html
 node test/cdp.mjs http://localhost:8765/test/highlight.html
-node test/cdp.mjs http://localhost:8765/test/shot.html shot.png   # screenshot only
+node test/cdp.mjs http://localhost:8765/test/small.html      # numbering, front matter, list cycling, settings
+node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos' shot.png   # screenshot: theme, toggles
 node test/pdf.mjs http://localhost:8765/sumi.html out.pdf            # print a sample doc, reports page count
 ```
 
@@ -163,13 +186,13 @@ known caret offset survives a render.
 ## Known gaps
 
 - Emoji shortcodes (`:smile:`) — needs an inline table, not implemented.
+- Front matter is parsed naively: top-level `key: value` rows and indented
+  `- item` lists only. Anything else shows in the source but not in the card.
 - Raw HTML is shown as source in the editor (rendering it would inject untracked
   text nodes). It passes through untouched on export.
 - Table editing is source editing. No cell navigation, no auto-alignment of the
   source pipes. A "tidy table" command that pads the source columns would be a
   natural next feature.
-- Width, typeface, margin and page breaks are not persisted — only the draft,
-  the theme and any custom CSS are.
 - Print is deliberately Typora-like (sans, 10pt, 1.4 leading, half-height
   blank lines, narrow margin by default) regardless of the screen theme.
 - Mermaid redraws on a 450 ms pause. Large diagrams will feel it.
@@ -180,5 +203,4 @@ known caret offset survives a render.
 - Tidy/align table source (`⌘⇧|`)
 - Command palette
 - Multiple documents / tabs
-- Persist the remaining settings alongside the theme
 - Vendored offline build (~1.5 MB with KaTeX + Mermaid inlined)
