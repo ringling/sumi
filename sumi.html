@@ -338,6 +338,8 @@ ul.toc li{padding-left:calc((var(--d) - 1) * 1.2em)}
 ul.toc a{color:var(--ink); text-decoration:none; border:0; cursor:pointer}
 ul.toc a:hover{color:var(--accent)}
 ul.toc .empty{color:var(--ink-faint)}
+ul.toc .tn{display:none; color:var(--ink-soft)}
+body.hnums ul.toc .tn{display:inline}
 
 /* ── help ────────────────────────────────────────────────────────────── */
 #help{
@@ -487,11 +489,17 @@ function slugify(t, seen) {
   if (!(s in seen)) { seen[s] = 0; return s; }
   return s + '-' + (++seen[s]);
 }
+/* TOC entries carry the same numbers the heading counters produce (h1 counts
+   every h1, h2 shows h1.h2, and so on); CSS shows them only under body.hnums. */
 function tocHtml(items, clean) {
   if (!items.length) return '<ul class="toc"><li class="empty">Table of contents — headings appear here</li></ul>';
   const min = Math.min(...items.map(h => h.level));
-  return '<ul class="toc">' + items.map(h =>
-    `<li style="--d:${h.level - min + 1}"><a href="#${att(h.slug)}"${clean ? '' : ` data-line="${h.i}"`}>${esc(plainText(h.text))}</a></li>`).join('') + '</ul>';
+  const c = [0, 0, 0, 0, 0, 0, 0];
+  return '<ul class="toc">' + items.map(h => {
+    c[h.level]++; for (let k = h.level + 1; k <= 6; k++) c[k] = 0;
+    const num = h.level === 1 ? c[1] + '.' : c.slice(1, h.level + 1).join('.');
+    return `<li style="--d:${h.level - min + 1}"><a href="#${att(h.slug)}"${clean ? '' : ` data-line="${h.i}"`}><span class="tn">${num} </span>${esc(plainText(h.text))}</a></li>`;
+  }).join('') + '</ul>';
 }
 
 const key = s => s.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1727,6 +1735,7 @@ mark{background:var(--mark)}
 ul.toc{list-style:none;padding:0;margin:1em 0;font-family:var(--sans);font-size:.92em;line-height:1.75}
 ul.toc li{padding-left:calc((var(--d) - 1) * 1.2em)}
 ul.toc a{color:var(--ink);text-decoration:none}ul.toc a:hover{color:var(--accent)}
+ul.toc .tn{display:none;color:var(--ink-soft)}body.hnums ul.toc .tn{display:inline}
 h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]{scroll-margin-top:1em}
 .mathblock{margin:1.2em 0;overflow-x:auto;position:relative}
 .eqno{display:none;position:absolute;right:0;top:50%;transform:translateY(-50%);font-family:var(--sans);font-size:.85em;color:var(--ink-soft)}

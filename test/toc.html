@@ -22,7 +22,8 @@ const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.create
   ok(items.length===5,'toc lists 5 headings: '+items.length);
   const hrefs=[...items].map(a=>a.getAttribute('href')).join(' ');
   ok(hrefs==='#top #second-part #second-part-1 #bold-co #far-down','slugs with duplicate suffix and punctuation dropped: '+hrefs);
-  ok(items[3].textContent==='Bold & co.','toc entry text has inline syntax stripped: '+items[3].textContent);
+  const title=a=>a.lastChild.textContent;
+  ok(title(items[3])==='Bold & co.','toc entry text has inline syntax stripped: '+title(items[3]));
   ok(getComputedStyle(items[0].parentElement).paddingLeft==='0px'&&parseFloat(getComputedStyle(items[1].parentElement).paddingLeft)>10,'nesting by level via padding');
   ok(L[2].querySelector('.prev[data-x]')!==null && L[2].querySelector('.src').textContent==='[TOC]','preview is data-x; source span is just [TOC]');
   // click a toc entry -> caret lands on that heading, scrolled into view
@@ -42,18 +43,25 @@ const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.create
   ok(/No heading/.test($('#toast').textContent)&&caretLine()===4,'missing target toasts and stays put: '+$('#toast').textContent);
   // toc updates when a heading is added
   caretIn(8,4); d.execCommand('insertText',false,'\n\n## Inserted'); await sleep(200);
-  const now=[...$$('#editor .line')[2].querySelectorAll('ul.toc li a')].map(a=>a.textContent).join('|');
+  const now=[...$$('#editor .line')[2].querySelectorAll('ul.toc li a')].map(title).join('|');
   ok(now==='Top|Second part|Inserted|Second part|Bold & co.|Far down','toc follows edits: '+now);
   // caret inside the [TOC] line shows source and preview
   caretIn(2,0); await sleep(100);
   const tl=$$('#editor .line')[2];
   ok(!tl.classList.contains('fold')&&tl.querySelector('.tok')&&tl.querySelector('ul.toc'),'caret on [TOC]: unfolded, source and list both shown');
+  // heading numbers flow into the toc
+  const tn=()=>[...$$('#editor .line')[2].querySelectorAll('ul.toc .tn')];
+  ok(tn().length===6&&w.getComputedStyle(tn()[0]).display==='none','toc numbers present but hidden by default');
+  $('#bNums').click(); $('#menu .mi[data-n=hnums]').click(); await sleep(100);
+  ok(w.getComputedStyle(tn()[0]).display==='inline','toc numbers shown with heading numbers on');
+  ok(tn().map(e=>e.textContent.trim()).join(' ')==='1. 1.1 1.2 1.3 1.3.1 1.4','toc numbers match the heading counters: '+tn().map(e=>e.textContent.trim()).join(' '));
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
   $('#bHtml').click(); await sleep(100); const html=await blob.text();
   ok(/<h1 id="top">Top<\/h1>/.test(html),'export h1 id');
   ok(/<h2 id="second-part">/.test(html)&&/<h2 id="second-part-1">/.test(html)&&/<h3 id="bold-co">/.test(html),'export duplicate and punctuation ids match the editor');
   ok(/<ul class="toc">.*href="#far-down"/.test(html)&&!/data-line/.test(html),'export toc without editor-only attributes');
+  ok(/<body class="hnums">/.test(html)&&/<span class="tn">1\.3\.1 <\/span>Bold/.test(html),'export toc carries numbers under body.hnums');
   ok(/<a href="#second-part-1" target="_blank"/.test(html)||/<a href="#second-part-1"/.test(html),'export keeps internal link');
   w.localStorage.clear();
   document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
