@@ -157,6 +157,32 @@ edge with the outline; opening one closes the other. Delete is two clicks on
 the × within four seconds. Harnesses must `indexedDB.deleteDatabase('sumi')`
 when starting fresh, otherwise the previous harness's documents load.
 
+## History
+
+Store `versions` {id (auto), docId, at, text, hash, label}, index `doc` on
+[docId, at]. Full snapshots, never deltas. `snapshot(label)` is called 30 s
+after the last edit (`snapTimer` in `afterChange`), from `flush()` whenever
+the document is left or the page hidden, on Save (label "Saved"), from the
+History drawer's name field, and by `restoreVersion` ("Before restore",
+only when the current text is not already the latest version). Unlabelled
+snapshots equal to the latest version are skipped by hash.
+
+`thin()` runs after every snapshot: keep everything from the last hour, the
+latest per hour for a day, per day for a month, per week beyond, and every
+labelled version. Deleting a document deletes its versions.
+
+The History drawer (`#hist`, File ▸ History, `body.hist`) sits on the right
+and can be open together with a left drawer. A row marked ● equals the
+current text; clicking a row reveals Restore, Diff, Delete. `lineDiff()` is
+prefix/suffix trimming plus an LCS on the middle (falls back to remove-all /
+add-all past 4M cells); `showDiff()` renders it in the `#diff` overlay with
+long unchanged runs collapsed. Restore goes through `setText`, so undo works.
+
+Backup (File ▸ Backup) downloads `{sumi:1, docs, versions}` as JSON without
+file handles; import (File ▸ Import, or drop a .json) merges by document id
+(newer `updated` wins) and by docId+at for versions, so importing twice adds
+nothing.
+
 ## Source mode
 
 `body.source` (Source button, ⌘⇧U) is pure CSS over the same DOM: every `.tok`
@@ -224,9 +250,11 @@ node test/cdp.mjs http://localhost:8765/test/small.html      # numbering, front 
 node test/cdp.mjs http://localhost:8765/test/toc.html        # [TOC], slugs, internal links, export ids
 node test/cdp.mjs http://localhost:8765/test/source.html     # source mode
 node test/cdp.mjs http://localhost:8765/test/docs.html       # documents: migration, drawer, switching, two tabs
+node test/cdp.mjs http://localhost:8765/test/history.html    # versions, diff, restore, thinning, backup round trip
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
+node test/cdp.mjs 'http://localhost:8765/test/shot.html#paper,docs,hist' shot.png                          # both drawers
 node test/pdf.mjs http://localhost:8765/sumi.html out.pdf            # print a sample doc, reports page count
 ```
 
@@ -283,5 +311,4 @@ known caret offset survives a render.
 
 - Tidy/align table source (`⌘⇧|`)
 - Command palette
-- Multiple documents / tabs
 - Vendored offline build (~1.5 MB with KaTeX + Mermaid inlined)

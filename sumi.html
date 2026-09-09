@@ -187,6 +187,46 @@ body.docs #docs{transform:none}
 #docs .doc .x:hover{color:#b4544a; background:var(--paper)}
 #docs .doc.ask .n{color:#b4544a}
 #docs .empty{color:var(--ink-faint); padding:4px 6px}
+#hist{
+  position:fixed; top:46px; bottom:0; right:0; width:250px; z-index:15;
+  padding:14px 12px 40px 10px; overflow:auto;
+  font-family:var(--sans); font-size:12.5px; line-height:1.5;
+  border-left:1px solid var(--rule); background:var(--paper);
+  transform:translateX(100%); transition:transform .22s ease;
+}
+body.hist #hist{transform:none}
+body.hist #wrap{padding-right:250px}
+#hist .hd{padding:0 6px 8px; color:var(--ink-faint); font-size:11px; letter-spacing:.06em; text-transform:uppercase}
+#hist form{display:flex; gap:4px; padding:0 4px 10px}
+#hist input{flex:1; min-width:0; font:inherit; color:var(--ink); background:var(--paper-2); border:1px solid transparent; border-radius:5px; padding:3px 7px; outline:none}
+#hist input:focus{border-color:var(--accent)}
+#hist form button,#hist .acts button{font:inherit; font-size:11.5px; color:var(--ink-soft); background:var(--paper-2); border:0; border-radius:5px; padding:3px 8px; cursor:pointer}
+#hist form button:hover,#hist .acts button:hover{color:var(--ink); background:var(--rule)}
+#hist .ver{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:5px 6px; border-radius:5px; cursor:pointer; color:var(--ink-soft)}
+#hist .ver:hover,#hist .ver.on{background:var(--paper-2); color:var(--ink)}
+#hist .ver .n{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+#hist .ver.same .n::after{content:' ●'; color:var(--accent); font-size:.7em; vertical-align:.15em}
+#hist .ver .t{color:var(--ink-faint); font-size:11px; white-space:nowrap}
+#hist .ver .acts{display:none; width:100%; gap:4px; padding:4px 0 2px}
+#hist .ver.on .acts{display:flex}
+#hist .empty{color:var(--ink-faint); padding:4px 6px}
+#diff{
+  position:fixed; inset:0; z-index:40; display:none; place-items:center;
+  background:color-mix(in srgb,var(--paper) 72%,transparent); backdrop-filter:blur(6px);
+}
+#diff.show{display:grid}
+#diff .card{
+  background:var(--paper); border:1px solid var(--rule); border-radius:12px; box-shadow:var(--shadow);
+  padding:18px 22px; width:min(920px,94vw); max-height:86vh; overflow:auto;
+  font-family:var(--sans); font-size:13px; color:var(--ink-soft);
+}
+#diff .card h2{font-family:var(--body); font-size:18px; color:var(--ink); margin:0 0 10px; display:flex; justify-content:space-between; align-items:baseline; gap:1em}
+#diff .card h2 small{font-family:var(--sans); font-size:12px; color:var(--ink-faint); font-weight:400}
+#diff pre{font-family:var(--mono); font-size:12px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; margin:0}
+#diff .dl{padding:0 8px; border-radius:3px}
+#diff .dl.del{background:color-mix(in srgb,#b4544a 16%,transparent); text-decoration:line-through; text-decoration-color:color-mix(in srgb,#b4544a 50%,transparent)}
+#diff .dl.add{background:color-mix(in srgb,#4a7d6f 18%,transparent)}
+#diff .skip{color:var(--ink-faint); text-align:center; padding:3px; font-family:var(--sans)}
 #outline div{
   padding:4px 6px; border-radius:5px; cursor:pointer; color:var(--ink-soft);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -425,17 +465,18 @@ kbd{
 @media (max-width:720px){
   #editor{padding:12vh min(18px, max(4mm, var(--pmargin))) 60vh}
   body.outline #wrap,body.docs #wrap{padding-left:0}
-  #outline,#docs{width:78vw}
+  body.hist #wrap{padding-right:0}
+  #outline,#docs,#hist{width:78vw}
   #name{width:8em}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
-  #bar,#outline,#docs,#count,#toast,#help,#menu{display:none!important}
+  #bar,#outline,#docs,#hist,#diff,#count,#toast,#help,#menu{display:none!important}
   .fmcard{display:none}
   html,html[data-theme]{--paper:#fff; --paper-2:#f0f0f0; --ink:#000; --ink-soft:#444; --ink-faint:#777; --rule:#ccc; --code-bg:#f3f3f3; --mark:#efe9a4}
   /* compact, Typora-like page: sans, 10pt, tight leading, half-height blank lines */
   body{background:#fff; color:#000; --body:var(--sans); font-size:10pt; --lh:1.4}
-  #wrap,body.outline #wrap,body.docs #wrap{overflow:visible; padding:0}
+  #wrap,body.outline #wrap,body.docs #wrap,body.hist #wrap{overflow:visible; padding:0}
   #editor{max-width:none; padding:0}
   body.nomargin #editor{padding:0 4mm}
   .tok,.src,.lang{display:none}
@@ -470,6 +511,8 @@ kbd{
 
 <nav id="outline" aria-label="Document outline"></nav>
 <nav id="docs" aria-label="Documents"></nav>
+<nav id="hist" aria-label="History"></nav>
+<div id="diff" role="dialog" aria-label="Version diff"><div class="card"></div></div>
 <div id="menu" role="menu"></div>
 
 <div id="wrap"><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" role="textbox" aria-multiline="true"></div></div>
@@ -496,6 +539,8 @@ kbd{
     <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3; a lone # title stays unnumbered) and equation numbers</td></tr>
     <tr><td>File</td><td>new document, the Documents drawer, open, save, copy markdown, export HTML, print or PDF</td></tr>
     <tr><td>Documents</td><td>every document you write is kept in this browser (IndexedDB); the drawer lists them by last edit — switch, delete, or rename by editing the name at the top left</td></tr>
+    <tr><td>History</td><td>versions of the open document: automatic after a pause, on save and when you leave it; name one, diff it against the current text, restore it (restoring keeps a version of what you had)</td></tr>
+    <tr><td>Backup</td><td>File ▸ Backup downloads every document and version as one .json; import it here or in another browser</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
     <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
     <tr><td><kbd>[TOC]</kbd></td><td>table of contents built from the headings; <kbd>[text](#heading)</kbd> links jump to a heading</td></tr>
@@ -510,6 +555,7 @@ kbd{
 
 <input type="file" id="picker" accept=".md,.markdown,.mdown,.txt,text/plain" hidden>
 <input type="file" id="csspicker" accept=".css,text/css" hidden>
+<input type="file" id="jsonpicker" accept=".json,application/json" hidden>
 
 <script>
 (() => {
@@ -1135,7 +1181,7 @@ function sync() {
   afterChange();
 }
 
-let chromeTimer = null, prevTimer = null;
+let chromeTimer = null, prevTimer = null, snapTimer = null;
 function afterChange(save = true) {
   updateActive();
   updateCount();
@@ -1143,7 +1189,10 @@ function afterChange(save = true) {
   renderPreviews(false);
   clearTimeout(prevTimer);
   prevTimer = setTimeout(() => renderPreviews(true), 450);
-  if (save) { clearTimeout(chromeTimer); chromeTimer = setTimeout(store, 900); }
+  if (save) {
+    clearTimeout(chromeTimer); chromeTimer = setTimeout(store, 900);
+    clearTimeout(snapTimer); snapTimer = setTimeout(() => snapshot(), 30000);
+  }
 }
 
 /* ── active line, focus, typewriter ───────────────────────────────────── */
@@ -1362,7 +1411,7 @@ editor.addEventListener('click', e => {
 
 const mod = e => e.metaKey || e.ctrlKey;
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { $('#help').classList.remove('show'); closeMenu(); return; }
+  if (e.key === 'Escape') { $('#help').classList.remove('show'); $('#diff').classList.remove('show'); closeMenu(); return; }
   if (!mod(e)) {
     if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); indent(e.shiftKey); }
     return;
@@ -1409,6 +1458,7 @@ function toggle(cls) {
   if (cls === 'focus' || cls === 'typewriter') updateActive();
   if (cls === 'outline') { if (on) document.body.classList.remove('docs'); buildOutline(); }
   if (cls === 'docs') { if (on) document.body.classList.remove('outline'); buildDocs(); }
+  if (cls === 'hist') buildHist();
   return on;
 }
 
@@ -1470,6 +1520,7 @@ menuButton('bPage', () => [
 menuButton('bFile', () => [
   { label: 'New document', data: 'data-act="new"', act: () => createDoc('untitled.md', '') },
   check('docs', 'Documents'),
+  check('hist', 'History'),
   '-',
   { label: 'Open…', hint: '⌘O', data: 'data-act="open"', act: () => $('#picker').click() },
   { label: 'Save', hint: '⌘S', data: 'data-act="save"', act: saveMd },
@@ -1477,6 +1528,9 @@ menuButton('bFile', () => [
   { label: 'Copy markdown', data: 'data-act="copy"', act: copySource },
   { label: 'Export HTML', hint: '⌘⇧E', data: 'data-act="html"', act: exportHtml },
   { label: 'Print or PDF', hint: '⌘P', data: 'data-act="print"', act: () => print() },
+  '-',
+  { label: 'Backup all documents', data: 'data-act="backup"', act: backup },
+  { label: 'Import backup…', data: 'data-act="import"', act: () => $('#jsonpicker').click() },
 ]);
 async function copySource() {
   try { await navigator.clipboard.writeText(text); toast('Copied markdown, ' + text.length + ' characters'); }
@@ -1600,7 +1654,7 @@ async function saveMd() {
         && await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') handle = null;
     if (handle) {
       const w = await handle.createWritable(); await w.write(data); await w.close();
-      toast('Saved to ' + handle.name); store(); return;
+      toast('Saved to ' + handle.name); store(); snapshot('Saved'); return;
     }
     if (window.showSaveFilePicker) {
       handle = await showSaveFilePicker({
@@ -1608,11 +1662,11 @@ async function saveMd() {
         types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }]
       });
       const w = await handle.createWritable(); await w.write(data); await w.close();
-      $('#name').value = handle.name; toast('Saved to ' + handle.name); store(); return;
+      $('#name').value = handle.name; toast('Saved to ' + handle.name); store(); snapshot('Saved'); return;
     }
   } catch (err) { if (err && err.name === 'AbortError') return; }
   download(new Blob([data], { type: 'text/markdown' }), fileName() + '.md');
-  toast('Downloaded ' + fileName() + '.md');
+  toast('Downloaded ' + fileName() + '.md'); snapshot('Saved');
 }
 /* An opened or dropped file becomes a document of its own (or reopens the one
    with the same name and text). */
@@ -1628,6 +1682,7 @@ addEventListener('drop', e => {
   e.preventDefault();
   const f = e.dataTransfer.files[0];
   if (f && /\.css$/i.test(f.name)) { f.text().then(t => { setUserCSS(t); toast('Loaded theme ' + f.name); }); return; }
+  if (f && /\.json$/i.test(f.name)) { importBackup(f); return; }
   if (f && /\.(md|markdown|mdown|txt)$/i.test(f.name)) openFile(f);
 });
 
@@ -1957,7 +2012,7 @@ async function store() {
     if (document.body.classList.contains('docs')) buildDocs();
   } catch (e) { docsOK = false; persist(KEY, { name: doc.name, text }); }
 }
-const flush = () => { clearTimeout(chromeTimer); return store(); };
+const flush = () => { clearTimeout(chromeTimer); clearTimeout(snapTimer); return store().then(() => snapshot()); };
 
 function showDoc(d) {
   doc = d; handle = d.handle || null; lastStored = d.text;
@@ -1968,6 +2023,7 @@ function showDoc(d) {
   persist(CUR, d.id);
   wrap.scrollTop = 0;
   editor.focus(); setSel(0); updateActive();
+  buildHist();
 }
 async function openDoc(id) {
   await flush();
@@ -2037,6 +2093,161 @@ $('#docs').onclick = e => {
   }
   if (!row.classList.contains('on')) openDoc(row.dataset.id);
 };
+
+/* ── history ───────────────────────────────────────────────────────────────
+   Versions are full snapshots in store `versions` {id, docId, at, text, hash,
+   label}. One is taken 30 s after the last edit, whenever the document is
+   left (flush), on Save (labelled), and when the user names one. Equal
+   content is never stored twice. thin() keeps every version from the last
+   hour, one per hour for a day, one per day for a month, one per week beyond
+   that, and every labelled one. Restore first snapshots what is being
+   replaced, so nothing is lost. */
+const hashOf = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + '.' + t.length.toString(36); };
+const versionsOf = id => idb.all('versions', 'doc', IDBKeyRange.bound([id, 0], [id, Infinity]));
+async function snapshot(label = '') {
+  if (!doc || !docsOK) return null;
+  const h = hashOf(text);
+  try {
+    const vs = await versionsOf(doc.id), last = vs[vs.length - 1];
+    if (!label && last && last.hash === h) return null;
+    const v = { docId: doc.id, at: Date.now(), text, hash: h, label };
+    v.id = await idb.put('versions', v);
+    await thin(vs.concat(v));
+    buildHist();
+    return v;
+  } catch (e) { return null; }
+}
+async function thin(vs) {
+  const now = Date.now(), keep = new Set(), bucket = new Map();
+  for (const v of vs) {                       /* ascending by time: the latest in each bucket wins */
+    if (v.label) { keep.add(v.id); continue; }
+    const age = now - v.at;
+    const b = age < 36e5 ? 'm' + v.id : age < 864e5 ? 'h' + Math.floor(v.at / 36e5)
+            : age < 30 * 864e5 ? 'd' + Math.floor(v.at / 864e5) : 'w' + Math.floor(v.at / (7 * 864e5));
+    bucket.set(b, v.id);
+  }
+  for (const id of bucket.values()) keep.add(id);
+  for (const v of vs) if (!keep.has(v.id)) await idb.delete('versions', v.id);
+}
+async function restoreVersion(id) {
+  const v = await idb.get('versions', id);
+  if (!v || !doc || v.docId !== doc.id) return;
+  const vs = await versionsOf(doc.id), last = vs[vs.length - 1];
+  if (!last || last.hash !== hashOf(text)) await snapshot('Before restore');
+  setText(v.text, 0);
+  await store();
+  toast('Restored the version from ' + new Date(v.at).toLocaleString());
+  buildHist();
+}
+async function buildHist() {
+  if (!document.body.classList.contains('hist') || !doc) return;
+  const box = $('#hist');
+  let vs = []; try { vs = (await versionsOf(doc.id)).reverse(); } catch (e) {}
+  const cur = hashOf(text);
+  box.innerHTML = '<div class="hd">History</div>'
+    + '<form><input placeholder="Name this version" aria-label="Version label" maxlength="60"><button type="submit">Save</button></form>';
+  if (!vs.length) box.insertAdjacentHTML('beforeend', '<div class="empty">Versions appear after a pause in typing, when you save, and when you leave the document.</div>');
+  vs.forEach((v, i) => {
+    const older = vs[i + 1], delta = older ? v.text.length - older.text.length : v.text.length;
+    const row = document.createElement('div');
+    row.className = 'ver' + (v.hash === cur ? ' same' : '');
+    row.dataset.id = v.id; row.title = new Date(v.at).toLocaleString() + (v.hash === cur ? ' — same as the current text' : '');
+    row.innerHTML = `<span class="n">${v.label ? esc(v.label) : ago(v.at)}</span>`
+      + `<span class="t">${v.label ? ago(v.at) + ' · ' : ''}${delta >= 0 ? '+' : ''}${delta.toLocaleString()}</span>`
+      + '<div class="acts"><button type="button" data-act="restore">Restore</button><button type="button" data-act="diff">Diff</button><button type="button" data-act="del">Delete</button></div>';
+    box.appendChild(row);
+  });
+}
+$('#hist').onclick = async e => {
+  const row = e.target.closest('.ver'); if (!row) return;
+  const act = e.target.closest('[data-act]');
+  if (!act) { const was = row.classList.contains('on'); for (const r of $('#hist').querySelectorAll('.ver.on')) r.classList.remove('on'); row.classList.toggle('on', !was); return; }
+  const id = +row.dataset.id;
+  if (act.dataset.act === 'restore') restoreVersion(id);
+  else if (act.dataset.act === 'diff') { const v = await idb.get('versions', id); if (v) showDiff(v); }
+  else if (act.dataset.act === 'del') { await idb.delete('versions', id); buildHist(); }
+};
+$('#hist').addEventListener('submit', e => {
+  e.preventDefault();
+  const inp = e.target.querySelector('input'), label = inp.value.trim() || 'Named version';
+  snapshot(label).then(() => toast('Version "' + label + '" saved'));
+});
+
+/* Line diff: common prefix and suffix are trimmed, an LCS handles the middle,
+   and very large middles fall back to "all removed, all added". */
+function lineDiff(a, b) {
+  const A = a.split('\n'), B = b.split('\n');
+  let p = 0; while (p < A.length && p < B.length && A[p] === B[p]) p++;
+  let q = 0; while (q < A.length - p && q < B.length - p && A[A.length - 1 - q] === B[B.length - 1 - q]) q++;
+  const a2 = A.slice(p, A.length - q), b2 = B.slice(p, B.length - q);
+  const out = A.slice(0, p).map(l => [' ', l]);
+  if (a2.length * b2.length > 4e6) { out.push(...a2.map(l => ['-', l]), ...b2.map(l => ['+', l])); }
+  else {
+    const n = a2.length, m = b2.length, L = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      L[i][j] = a2[i] === b2[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    let i = 0, j = 0;
+    while (i < n && j < m) {
+      if (a2[i] === b2[j]) { out.push([' ', a2[i]]); i++; j++; }
+      else if (L[i + 1][j] >= L[i][j + 1]) out.push(['-', a2[i++]]);
+      else out.push(['+', b2[j++]]);
+    }
+    while (i < n) out.push(['-', a2[i++]]);
+    while (j < m) out.push(['+', b2[j++]]);
+  }
+  out.push(...A.slice(A.length - q).map(l => [' ', l]));
+  return out;
+}
+function showDiff(v) {
+  const rows = lineDiff(v.text, text);
+  const removed = rows.filter(r => r[0] === '-').length, added = rows.filter(r => r[0] === '+').length;
+  let html = '', run = [];
+  const flushRun = () => {
+    if (run.length > 8) html += run.slice(0, 3).join('') + `<div class="skip">${run.length - 6} unchanged lines</div>` + run.slice(-3).join('');
+    else html += run.join('');
+    run = [];
+  };
+  for (const [k, l] of rows) {
+    const line = `<div class="dl${k === '-' ? ' del' : k === '+' ? ' add' : ''}">${esc(l) || '&nbsp;'}</div>`;
+    if (k === ' ') run.push(line); else { flushRun(); html += line; }
+  }
+  flushRun();
+  $('#diff .card').innerHTML = `<h2><span>${v.label ? esc(v.label) : 'Version'} · ${new Date(v.at).toLocaleString()}</span><small>${removed} removed · ${added} added · Esc closes</small></h2><pre>${html}</pre>`;
+  $('#diff').classList.add('show');
+}
+$('#diff').onclick = e => { if (e.target.id === 'diff') $('#diff').classList.remove('show'); };
+
+/* Backup: one JSON file with every document (without file handles) and version. */
+async function backup() {
+  await flush();
+  let docs = [], versions = [];
+  try { docs = (await idb.all('docs')).map(({ handle, ...d }) => d); versions = await idb.all('versions'); } catch (e) { toast('No document storage to back up'); return; }
+  download(new Blob([JSON.stringify({ sumi: 1, exported: new Date().toISOString(), docs, versions })], { type: 'application/json' }),
+           'sumi-backup-' + new Date().toISOString().slice(0, 10) + '.json');
+  toast(`Backup: ${docs.length} documents, ${versions.length} versions`);
+}
+async function importBackup(f) {
+  let data; try { data = JSON.parse(await f.text()); } catch (e) { data = null; }
+  if (!data || data.sumi !== 1 || !Array.isArray(data.docs)) { toast('Not a Sumi backup'); return; }
+  let added = 0, vadded = 0;
+  try {
+    const have = new Map((await idb.all('docs')).map(d => [d.id, d]));
+    for (const d of data.docs) {
+      const cur = have.get(d.id);
+      if (!d.id || typeof d.text !== 'string' || (cur && cur.updated >= d.updated)) continue;
+      await idb.put('docs', { id: d.id, name: d.name || 'untitled.md', text: d.text, created: d.created || d.updated, updated: d.updated || Date.now() }); added++;
+    }
+    const seen = new Set((await idb.all('versions')).map(v => v.docId + '|' + v.at));
+    for (const v of data.versions || []) {
+      if (!v.docId || typeof v.text !== 'string' || seen.has(v.docId + '|' + v.at)) continue;
+      await idb.put('versions', { docId: v.docId, at: v.at, text: v.text, hash: v.hash || hashOf(v.text), label: v.label || '' }); vadded++;
+    }
+  } catch (e) { toast('Import failed'); return; }
+  toast(`Imported ${added} documents, ${vadded} versions`);
+  if (doc && !document.body.classList.contains('docs')) toggle('docs'); else buildDocs();
+  buildHist();
+}
+$('#jsonpicker').onchange = e => { const f = e.target.files[0]; if (f) importBackup(f); e.target.value = ''; };
 
 const WELCOME = `# Sumi
 

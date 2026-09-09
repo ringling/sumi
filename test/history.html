@@ -1,0 +1,86 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+const caretEnd=()=>{ const el=$$('#editor .line').slice(-1)[0]; const r=d.createRange(); r.selectNodeContents(el); r.collapse(false); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); };
+const type=async t=>{ caretEnd(); d.execCommand('insertText',false,t); await sleep(1100); };
+const vers=()=>$$('#hist .ver');
+const labels=()=>vers().map(v=>v.querySelector('.n').textContent).join('|');
+const rowByName=n=>$$('#docs .doc').find(r=>r.querySelector('.n').textContent===n);
+const idbAll=(win,store)=>new Promise((res,rej)=>{ const r=win.indexedDB.open('sumi',1); r.onsuccess=()=>{ const t=r.result.transaction(store,'readonly'); const q=t.objectStore(store).getAll(); q.onsuccess=()=>{ r.result.close(); res(q.result); }; q.onerror=()=>rej(q.error); }; r.onerror=()=>rej(r.error); });
+const idbPut=(win,store,vals)=>new Promise((res,rej)=>{ const r=win.indexedDB.open('sumi',1); r.onsuccess=()=>{ const t=r.result.transaction(store,'readwrite'); for(const v of vals) t.objectStore(store).put(v); t.oncomplete=()=>{ r.result.close(); res(); }; t.onerror=()=>rej(t.error); }; r.onerror=()=>rej(r.error); });
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'application/json'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(500); };
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  const lines0=$$('#editor .line').length;
+  $('#name').value='main.md'; $('#name').dispatchEvent(new w.Event('input',{bubbles:true})); await sleep(1100);
+  const back=async()=>{ mclick('bFile','[data-n=docs]'); await sleep(250); rowByName('main.md').click(); await sleep(400); mclick('bFile','[data-n=docs]'); await sleep(100); };
+  mclick('bFile','[data-n=hist]'); await sleep(200);
+  ok(d.body.classList.contains('hist')&&vers().length===0&&!!$('#hist .empty'),'History drawer opens empty');
+  // name a version
+  $('#hist input').value='first'; $('#hist form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})); await sleep(300);
+  ok(vers().length===1&&labels()==='first'&&vers()[0].classList.contains('same'),'named version listed and marked as equal to the current text');
+  // typing + leaving the document snapshots automatically
+  await type('\nadded line');
+  mclick('bFile','[data-act=new]'); await sleep(400);
+  await back();
+  ok($$('#editor .line').length===lines0+1,'back on the first document with the added line');
+  ok(vers().length===2&&/^now\|first$/.test(labels()),'leaving the document took an automatic version: '+labels());
+  ok(/^\+\d+$/.test(vers()[0].querySelector('.t').textContent),'row shows the size delta: '+vers()[0].querySelector('.t').textContent);
+  // no duplicate when nothing changed
+  mclick('bFile','[data-act=new]'); await sleep(300); await back();
+  ok(vers().length===2,'leaving again without changes adds no version: '+labels()+' / doc '+$('#name').value+' lines '+$$('#editor .line').length);
+  // diff overlay
+  vers()[1].click(); ok(vers()[1].classList.contains('on')&&w.getComputedStyle(vers()[1].querySelector('.acts')).display==='flex','clicking a version reveals its actions');
+  vers()[1].querySelector('[data-act=diff]').click(); await sleep(200);
+  ok($('#diff').classList.contains('show')&&$$('#diff .dl.add').some(e=>e.textContent==='added line')&&$$('#diff .dl.del').length<=1,'diff shows the added line: +'+$$('#diff .dl.add').length+' -'+$$('#diff .dl.del').length);
+  ok(!!$('#diff .skip'),'long unchanged run collapsed');
+  key('Escape'); ok(!$('#diff').classList.contains('show'),'Escape closes the diff');
+  // restore: an unsaved edit first, so the safety snapshot has something to keep
+  await type(' more'); await sleep(100);
+  const firstRow=vers().find(v=>v.querySelector('.n').textContent==='first'); firstRow.click(); firstRow.querySelector('[data-act=restore]').click(); await sleep(600);
+  ok($$('#editor .line').length===lines0,'restore brings the old text back');
+  ok(/^Before restore\|now\|first$/.test(labels()),'restore first keeps what was replaced: '+labels());
+  ok(/Restored the version/.test($('#toast').textContent),'restore toast');
+  key('z',{metaKey:true}); await sleep(150);
+  ok($$('#editor .line').length===lines0+1&&/more$/.test($$('#editor .line').slice(-1)[0].textContent),'undo reverses the restore');
+  // delete a version
+  const n=vers().length; vers()[0].click(); vers()[0].querySelector('[data-act=del]').click(); await sleep(300);
+  ok(vers().length===n-1,'delete removes a version');
+  // thinning: 30 unlabelled versions aged 2–3 hours collapse to hourly buckets
+  const docs=await idbAll(w,'docs'); const cur=docs.find(x=>x.name===$('#name').value);
+  const now=Date.now(), fake=[]; for(let k=0;k<30;k++) fake.push({docId:cur.id, at:now-2*36e5-k*120e3, text:'old '+k, hash:'h'+k, label:''});
+  await idbPut(w,'versions',fake);
+  $('#hist input').value='after'; $('#hist form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true})); await sleep(500);
+  const all=await idbAll(w,'versions'); const aged=all.filter(v=>v.docId===cur.id&&v.text.startsWith('old '));
+  ok(aged.length>=1&&aged.length<=3,'30 versions from 2–3 hours ago thinned to hourly: '+aged.length);
+  ok(all.filter(v=>v.label).length>=2,'labelled versions survive thinning');
+  // backup round trip
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  mclick('bFile','[data-act=backup]'); await sleep(400); const json=await blob.text(); const data=JSON.parse(json);
+  ok(data.sumi===1&&data.docs.length===3&&data.versions.length===all.length&&!('handle' in data.docs[0]),'backup holds all documents and versions: '+data.docs.length+' docs, '+data.versions.length+' versions');
+  // delete a document, import the backup, it is back with its versions
+  mclick('bFile','[data-n=docs]'); await sleep(200);
+  const victim=$$('#docs .doc').find(r=>!r.classList.contains('on')); const vname=victim.querySelector('.n').textContent;
+  victim.querySelector('.x').click(); victim.querySelector('.x').click(); await sleep(400);
+  ok($$('#docs .doc').length===2,'document deleted before import');
+  await drop(json,'sumi-backup.json');
+  ok($$('#docs .doc').length===3&&!!rowByName(vname),'import restores the deleted document: '+$$('#docs .doc').map(r=>r.querySelector('.n').textContent).join('|'));
+  ok(/Imported 1 documents/.test($('#toast').textContent),'import toast: '+$('#toast').textContent);
+  await drop(json,'sumi-backup.json');
+  ok($$('#docs .doc').length===3&&(await idbAll(w,'versions')).length===all.length,'importing twice adds nothing');
+  await drop('{"nope":true}','x.json');
+  ok(/Not a Sumi backup/.test($('#toast').textContent),'foreign json rejected');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

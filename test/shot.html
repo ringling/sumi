@@ -11,7 +11,8 @@ f.onload=async()=>{ if(first){ first=false; f.contentWindow.localStorage.clear()
   const dt=new w.DataTransfer(); dt.items.add(new w.File([md],'t.md',{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true}));
   await sleep(300); const [theme,...flags]=(location.hash.slice(1)||'night').split(',');
   d.querySelector('#bTheme').click(); d.querySelector('#menu .mi[data-t='+theme+']').click();
-  for(const fl of flags){ if(fl==='source'){ d.querySelector('#bView').click(); d.querySelector('#menu .mi[data-n=source]').click(); continue; } d.querySelector('#bPage').click(); d.querySelector('#menu .mi[data-n='+fl+']').click(); }
+  for(const fl of flags){ if(fl==='source'){ d.querySelector('#bView').click(); d.querySelector('#menu .mi[data-n=source]').click(); continue; }
+    if(fl==='hist'||fl==='docs'){ d.querySelector('#bFile').click(); d.querySelector('#menu .mi[data-n='+fl+']').click(); await sleep(300); if(fl==='hist'){ d.querySelector('#hist input').value='Draft one'; d.querySelector('#hist form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})); await sleep(300); } continue; } d.querySelector('#bPage').click(); d.querySelector('#menu .mi[data-n='+fl+']').click(); }
   if(flags.length){ const r=d.createRange(); r.setStart(d.querySelector('#editor .line'),0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); }
   if(/^\?menu=/.test(location.search)){ d.querySelector('#'+location.search.slice(6)).click(); }
   if(location.search==='?code'){ d.querySelector('#wrap').scrollTop=d.querySelector('.line.fence').offsetTop-60; }
