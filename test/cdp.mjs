@@ -1,7 +1,7 @@
-// Minimal DevTools-protocol driver: node test/cdp.mjs <harness-url>
+// Minimal DevTools-protocol driver: node test/cdp.mjs <harness-url> [screenshot.png]
 // Launches headless Chrome, loads the page, and prints #out once it ends in DONE or ERROR.
 import { spawn } from 'node:child_process';
-const url = process.argv[2];
+const url = process.argv[2], shot = process.argv[3];
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   ['--headless=new', '--disable-gpu', '--no-first-run', '--remote-debugging-port=9333',
    '--user-data-dir=test/profile', '--window-size=1400,900', 'about:blank'],
@@ -30,6 +30,7 @@ try {
     text = r.result.value;
     if (/\n(DONE|ERROR)/.test(text)) break;
   }
+  if (shot) { const r = await send('Page.captureScreenshot', { format: 'png' }); (await import('node:fs')).writeFileSync(shot, Buffer.from(r.data, 'base64')); }
   console.log(text || 'NO OUTPUT');
 } catch (e) { console.log('DRIVER ERROR', e.message); }
 finally { chrome.kill(); process.exit(0); }

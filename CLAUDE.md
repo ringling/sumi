@@ -74,6 +74,7 @@ Add a new block type by giving it a `blk`, a `kind`, and a branch in
 | line classification | `classify()` — single line → type + css class |
 | document scan | `scan()` — stateful pass: fences, math, tables, setext, refs |
 | line rendering | `renderLine` / `coreLine` |
+| syntax highlighting | `hlLang`, `hlRun`, `hlBlock`, `hlSplit`, `HL_CSS` |
 | math & diagrams | KaTeX, Mermaid, `renderPreviews` |
 | DOM <-> text | the three walkers. Treat as load-bearing |
 | render / state | reconciliation, history, `setText`, `sync` |
@@ -85,6 +86,19 @@ drops the syntax and emits real `<img>`/`<a>`/KaTeX. Block-level rendering is
 **not** shared: the editor renders line by line, the export renders blocks. When
 you add syntax, both usually need touching, and they can drift. That drift is the
 most likely source of "looks right in the editor, wrong in the export".
+
+## Syntax highlighting
+
+highlight.js loads lazily like KaTeX and must fail soft. `scan()` highlights a
+fenced block as one unit at the closing fence (so block comments and strings
+carry across lines) and `hlSplit()` cuts the result into per-line HTML,
+closing open spans at each newline and reopening them on the next line. The
+per-line HTML goes into `f.hl`, which is inside the render key, so only lines
+whose colouring changed are rewritten. Each line's HTML contains exactly the
+source text, only wrapped in spans, which is why invariant 1 holds without
+`data-x`. Colours are the `--hl-*` tokens; `HL_CSS` maps the hljs classes onto
+them and is injected into both the editor and the export. Mermaid fences and
+indented code are not highlighted.
 
 ## Themes
 
@@ -111,11 +125,15 @@ over the DevTools protocol against a harness page served from the project:
 ```bash
 python3 -m http.server 8765 &
 node test/cdp.mjs http://localhost:8765/test/themes.html
+node test/cdp.mjs http://localhost:8765/test/highlight.html
+node test/cdp.mjs http://localhost:8765/test/shot.html shot.png   # screenshot only
 ```
 
-The harness loads `sumi.html` in an iframe and reports PASS/FAIL lines. The
+Each harness loads `sumi.html` in an iframe and reports PASS/FAIL lines. The
 script is an IIFE, so tests go through the UI (clicks, key events, drop
-events), not through internal functions. The loop that has been working for
+events, `execCommand('insertText')` for typing), not through internal
+functions. Needs Chrome at the default macOS path and network for the CDN
+libraries. The loop that has been working for
 the pure functions:
 
 ```bash

@@ -42,6 +42,7 @@ const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.a
   ok($('#bFont').textContent==='Mono','font click after sans theme -> Mono: '+$('#bFont').textContent);
   pick('paper');
   ok($('#bWide').textContent==='Width: regular' && $('#bFont').textContent==='Serif' && cv('--measure')==='56em','paper resets overrides: '+$('#bWide').textContent+' '+$('#bFont').textContent+' '+cv('--measure'));
+  const before=$('#editor').textContent;
   await dropCss(':root,html[data-theme]{--accent:#ff0000}');
   ok(cv('--accent')==='#ff0000','dropped css overrides accent: '+cv('--accent'));
   ok(!!$('#themes .mi[data-act=clear]'),'menu shows remove custom css');
@@ -49,7 +50,7 @@ const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.a
   ok(cv('--accent')==='#ff0000','custom css survives theme change');
   const st=JSON.parse(w.localStorage.getItem('sumi:settings')||'null');
   ok(st&&st.theme==='sepia'&&/ff0000/.test(st.css),'settings persisted: '+JSON.stringify(st));
-  ok($('#editor').textContent.startsWith('# Sumi'),'drop of .css did not replace the document');
+  ok($('#editor').textContent===before,'drop of .css did not replace the document');
   pick('whitey');
   // export: capture blob, neuter anchor click
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};

@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><style>body{margin:0}</style><pre id="out" style="position:absolute;left:-9999px"></pre>
+<iframe id="f" src="/sumi.html" style="width:1400px;height:900px;border:0"></iframe>
+<script>
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const T='\x60\x60\x60';
+const md=['# Sumi themes','','A markdown editor that shows you the finished page while you write it. Put your caret anywhere in this **bold** sentence and the asterisks come back. Same for *emphasis*, `inline code` and [links](https://example.com).','','## What\'s here','','- GitHub Flavored Markdown: tables, task lists, footnotes, alerts','- Focus mode, typewriter scrolling, an outline drawer','- Syntax highlighted code fences','',T+'js','// render one line, folding the syntax away unless the caret is on it','function render(line, active) {','  const html = active ? line : fold(line);   /* class toggle,','                                                 not a re-render */','  return `<div class="line">${html}</div>`;','}',T,'',T+'python','def render(line, active):','    """Return the line, folded unless active."""',"    return line if active else fold(line)",T,'','> A quote keeps its rule in the margin.',''].join('\n');
+f.onload=async()=>{ await sleep(400); const w=f.contentWindow, d=f.contentDocument;
+  const dt=new w.DataTransfer(); dt.items.add(new w.File([md],'t.md',{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true}));
+  await sleep(300); d.querySelector('#bTheme').click(); d.querySelector('#themes .mi[data-t='+(location.hash.slice(1)||'night')+']').click();
+  let t=0; while(!d.querySelector('.hljs-keyword')&&t++<40) await sleep(250);
+  d.querySelector('#bar').classList.add('show'); w.scrollTo(0,0); await sleep(600);
+  document.getElementById('out').textContent='RESULTS\nDONE'; };
+</script>

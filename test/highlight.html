@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:800px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,400); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const T='\x60\x60\x60';
+const md=['# T','',T+'js','// note','const x = 1; /* start','end */ return x;','',T,'',T+'python','def f():','    """doc','    more"""',"    return 'a'",T,'',T+'nosuchlang','foo bar',T,'',T+'mermaid','graph TD; A-->B',T,''].join('\n');
+const srcLines=md.split('\n');
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(300); };
+const pick=name=>{ $('#bTheme').click(); $('#themes .mi[data-t='+name+']').click(); };
+(async()=>{
+  await loadFrame(); bind();
+  await drop(md,'t.md');
+  let tries=0; while(!$('.line.code .hljs-keyword') && tries++<40) await sleep(250);
+  ok(!!$('.line.code .hljs-keyword'),'highlight.js loaded and keywords wrapped (waited '+tries*250+'ms)');
+  const lines=$$('#editor .line');
+  ok(lines.length===srcLines.length,'line count '+lines.length+' == '+srcLines.length);
+  let mismatch=[]; lines.forEach((el,i)=>{ if(el.textContent!==srcLines[i]) mismatch.push(i+': '+JSON.stringify(el.textContent)+' vs '+JSON.stringify(srcLines[i])); });
+  ok(mismatch.length===0,'every line textContent equals source'+(mismatch.length?' — '+mismatch.join('; '):''));
+  ok(!!lines[3].querySelector('.hljs-comment'),'js // comment highlighted');
+  ok(!!lines[4].querySelector('.hljs-keyword') && !!lines[4].querySelector('.hljs-comment'),'js line with const and comment start');
+  ok(!!lines[5].querySelector('.hljs-comment') && !!lines[5].querySelector('.hljs-keyword'),'block comment continues on the next line, then return keyword');
+  ok(lines[6].innerHTML==='<br>','empty code line renders as <br>: '+lines[6].innerHTML);
+  ok(!!lines[10].querySelector('.hljs-keyword'),'python def highlighted');
+  ok(!!lines[11].querySelector('.hljs-string') && !!lines[12].querySelector('.hljs-string'),'python docstring spans two lines');
+  ok(!!lines[13].querySelector('.hljs-string'),"python string 'a'");
+  ok(!lines[17].querySelector('span'),'unknown language stays plain');
+  ok(!lines[21].querySelector('[class^=hljs]'),'mermaid source not highlighted');
+  // colours follow theme
+  const kw=lines[4].querySelector('.hljs-keyword');
+  const c1=w.getComputedStyle(kw).color; pick('night'); const c2=w.getComputedStyle($$('#editor .line')[4].querySelector('.hljs-keyword')).color;
+  ok(c1==='rgb(123, 63, 160)','paper keyword colour '+c1);
+  ok(c2==='rgb(201, 160, 232)','night keyword colour '+c2);
+  pick('paper');
+  // caret: type at end of line 5 ("end */ return x;")
+  const line5=$$('#editor .line')[5];
+  const r=d.createRange(); r.selectNodeContents(line5); r.collapse(false);
+  const sel=w.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  $('#editor').focus();
+  d.execCommand('insertText',false,'Z');
+  await sleep(150);
+  const l5=$$('#editor .line')[5];
+  ok(l5.textContent==='end */ return x;Z','typed char lands in source: '+JSON.stringify(l5.textContent));
+  ok(!!l5.querySelector('.hljs-keyword'),'line stays highlighted after typing');
+  const s2=w.getSelection(); const rr=d.createRange(); rr.selectNodeContents(l5); rr.setEnd(s2.anchorNode,s2.anchorOffset);
+  ok(rr.toString().length===l5.textContent.length && l5.contains(s2.anchorNode),'caret at end of the edited line: offset '+rr.toString().length);
+  // type a second char: caret must not have jumped
+  d.execCommand('insertText',false,'Y'); await sleep(150);
+  ok($$('#editor .line')[5].textContent==='end */ return x;ZY','second char appended in order: '+JSON.stringify($$('#editor .line')[5].textContent));
+  // export
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  $('#bHtml').click(); await sleep(100); const html=await blob.text();
+  ok(/<pre><code class="language-js">[^]*hljs-keyword/.test(html),'export highlights js fence');
+  ok(/<pre><code class="language-nosuchlang">foo bar<\/code>/.test(html),'export leaves unknown language plain');
+  ok(/\.hljs-keyword[^{]*\{color:var\(--hl-kw\)\}/.test(html) && /--hl-kw:#7b3fa0/.test(html),'export ships highlight css and tokens');
+  w.localStorage.removeItem('sumi:settings'); w.localStorage.removeItem('sumi:draft');
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

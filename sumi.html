@@ -30,6 +30,10 @@
   --pmargin:2.5cm;   /* page margin: shown on screen as side padding, and as @page for print */
   --lh:1.72;
   --scheme:light;    /* dark themes set this to dark so scrollbars and form controls follow */
+
+  /* code highlighting (highlight.js classes are mapped onto these in HL_CSS) */
+  --hl-kw:#7b3fa0; --hl-str:#2f7d4f; --hl-num:#b3571e; --hl-cmt:#8d959b;
+  --hl-fn:#2a63b0; --hl-type:#a83a26; --hl-attr:#8a6a1a;
 }
 html{color-scheme:var(--scheme)}
 
@@ -40,6 +44,8 @@ html{color-scheme:var(--scheme)}
    appended after everything here and can override any of it. */
 html[data-theme="ink"]{
   --scheme:dark;
+  --hl-kw:#c8a2e8; --hl-str:#95c98f; --hl-num:#e3a56e; --hl-cmt:#6a7375;
+  --hl-fn:#86adf0; --hl-type:#f0907e; --hl-attr:#e6c07b;
   --paper:#1b1f22;
   --paper-2:#22272a;
   --ink:#d8dcd9;
@@ -58,6 +64,8 @@ html[data-theme="github"]{
   --shadow:0 1px 2px rgba(31,35,40,.06), 0 8px 24px rgba(31,35,40,.08);
   --sans:-apple-system,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif;
   --body:var(--sans); --size:16px; --lh:1.6; --measure:64em;
+  --hl-kw:#cf222e; --hl-str:#0a3069; --hl-num:#0550ae; --hl-cmt:#6e7781;
+  --hl-fn:#8250df; --hl-type:#953800; --hl-attr:#116329;
 }
 html[data-theme="github"] .line.h1,html[data-theme="github"] .line.h2{border-bottom:1px solid var(--rule); padding-bottom:.25em}
 html[data-theme="github"] .h{font-weight:600}
@@ -83,6 +91,8 @@ html[data-theme="sepia"]{
 }
 html[data-theme="night"]{
   --scheme:dark;
+  --hl-kw:#c9a0e8; --hl-str:#a3d39c; --hl-num:#e3a56e; --hl-cmt:#7f878d;
+  --hl-fn:#8fbcbb; --hl-type:#f0907e; --hl-attr:#e6c07b;
   --paper:#363b40; --paper-2:#3e444a; --ink:#dedede; --ink-soft:#b3b9be; --ink-faint:#7f878d;
   --rule:#505860; --accent:#c9d0d6; --code-bg:#2c3034; --mark:#6e6428; --sel:rgba(255,255,255,.16);
   --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 30px rgba(0,0,0,.35);
@@ -381,6 +391,7 @@ kbd{
     <tr><td>Margin</td><td>page margins on screen, print and PDF — wide, narrow, none</td></tr>
     <tr><td><kbd>$x$</kbd> <kbd>$$…$$</kbd></td><td>inline and block LaTeX (KaTeX)</td></tr>
     <tr><td><kbd>```mermaid</kbd></td><td>diagram block, drawn below the source</td></tr>
+    <tr><td><kbd>```js</kbd></td><td>code fences with a language are syntax highlighted (highlight.js)</td></tr>
     <tr><td><kbd>Esc</kbd></td><td>close this</td></tr>
   </table>
 </div></div>
@@ -580,6 +591,7 @@ function scan(lines) {
   const out = [];
   let inCode = false, tick = '', inMath = false, mer = false;
   let blk = 0, tEnd = -1, listCtx = false, prevBlank = true;
+  let codeFrom = 0, codeLang = '';
 
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
@@ -592,6 +604,8 @@ function scan(lines) {
       f = { type:'fence', open:opening, ws:fence[1], ticks:fence[2], lang:fence[3] };
       f.cls = 'fence ' + (opening ? 'open' : 'close');
       if (mer) { f.blk = blk; f.kind = 'mermaid'; if (!opening) { f.last = true; mer = false; } }
+      if (opening) { codeFrom = i + 1; codeLang = mer ? '' : hlLang(fence[3]); }
+      else if (codeLang) hlRun(out, lines, codeFrom, i, codeLang);
       tick = opening ? fence[2][0] : '';
       inCode = opening;
     } else if (inCode) {
@@ -635,9 +649,77 @@ function scan(lines) {
     f.k = JSON.stringify(f);
     out.push(f);
   }
+  if (inCode && codeLang) hlRun(out, lines, codeFrom, lines.length, codeLang);
   blkCount = blk;
   return out;
 }
+
+function hlHtml(info, code) {
+  const lang = hlLang(info);
+  if (lang) { try { return hljs.highlight(code, { language: lang, ignoreIllegals: true }).value; } catch (e) {} }
+  return esc(code);
+}
+
+/* ── syntax highlighting ─────────────────────────────────────────────────
+   highlight.js loads lazily and may be absent; then code lines stay plain.
+   A fence is highlighted as one block, so comments and strings may span
+   lines, and the result is split back into per-line HTML. Each line's HTML
+   carries exactly the source line's text, only wrapped in spans, so the DOM
+   walkers see nothing new. The per-line HTML lives in f.hl and is part of
+   the render key, so only lines whose colouring changed are rewritten. */
+const hlCache = new Map();
+function hlLang(info) {
+  const l = (info || '').trim().split(/[\s{,:]/)[0].toLowerCase();
+  return l && globalThis.hljs && hljs.getLanguage(l) ? l : '';
+}
+function hlRun(out, lines, from, to, lang) {
+  if (to <= from) return;
+  const v = hlBlock(lang, lines.slice(from, to).join('\n'));
+  if (!v) return;
+  for (let i = from; i < to; i++) { out[i].hl = v[i - from]; out[i].k = JSON.stringify(out[i]); }
+}
+function hlBlock(lang, code) {
+  const ck = lang + '\0' + code;
+  let v = hlCache.get(ck);
+  if (v) return v;
+  if (code.length > 40000) return null;
+  let html;
+  try { html = hljs.highlight(code, { language: lang, ignoreIllegals: true }).value; } catch (e) { return null; }
+  v = hlSplit(html);
+  if (v.length !== code.split('\n').length) return null;
+  if (hlCache.size > 200) hlCache.delete(hlCache.keys().next().value);
+  hlCache.set(ck, v);
+  return v;
+}
+/* Split highlight.js output at newlines: close the open spans at the end of
+   each line and reopen them at the start of the next. Text is entity-escaped
+   by hljs, so a raw '<' only ever starts a tag. Lines with no text become ''. */
+function hlSplit(html) {
+  const out = [], open = [];
+  let cur = '', hasText = false, m;
+  const re = /<span class="([^"]*)">|<\/span>|\n|[^<\n]+/g;
+  while ((m = re.exec(html))) {
+    const t = m[0];
+    if (t === '\n') {
+      out.push(hasText ? cur + '</span>'.repeat(open.length) : '');
+      cur = open.map(c => `<span class="${c}">`).join(''); hasText = false;
+    } else if (t === '</span>') { open.pop(); cur += t; }
+    else if (t[0] === '<') { open.push(m[1]); cur += t; }
+    else { cur += t; hasText = true; }
+  }
+  out.push(hasText ? cur + '</span>'.repeat(open.length) : '');
+  return out;
+}
+const HL_CSS = `
+.hljs-keyword,.hljs-selector-tag,.hljs-literal,.hljs-doctag,.hljs-template-tag{color:var(--hl-kw)}
+.hljs-string,.hljs-regexp,.hljs-char.escape_,.hljs-template-variable,.hljs-addition,.hljs-quote{color:var(--hl-str)}
+.hljs-number,.hljs-symbol,.hljs-bullet,.hljs-link,.hljs-meta{color:var(--hl-num)}
+.hljs-comment{color:var(--hl-cmt);font-style:italic}
+.hljs-title,.hljs-section,.hljs-name,.hljs-selector-id,.hljs-selector-class{color:var(--hl-fn)}
+.hljs-type,.hljs-built_in,.hljs-title.class_,.hljs-deletion,.hljs-variable.language_{color:var(--hl-type)}
+.hljs-attr,.hljs-attribute,.hljs-property,.hljs-variable,.hljs-selector-attr,.hljs-selector-pseudo{color:var(--hl-attr)}
+.hljs-strong{font-weight:700}.hljs-emphasis{font-style:italic}
+`;
 
 /* ── line rendering ──────────────────────────────────────────────────── */
 function renderLine(s, f) {
@@ -655,7 +737,7 @@ function coreLine(s, f) {
     case 'fence':
       return esc(f.ws) + `<span class="tok">${esc(f.ticks)}</span>` +
              (f.lang ? `<span class="lang">${esc(f.lang)}</span>` : '');
-    case 'code':
+    case 'code':  return f.hl !== undefined ? f.hl : esc(s);
     case 'icode':
     case 'html':  return esc(s);
     case 'hr':    return `<span class="tok">${esc(s)}</span><span class="rule"></span>`;
@@ -1156,6 +1238,7 @@ const THEMES = {
   night:     { label: 'Night',     dark: true,  pair: 'github' },
 };
 let themeName = 'paper', userCSS = '';
+document.head.appendChild(document.createElement('style')).textContent = HL_CSS;
 const userStyle = document.head.appendChild(document.createElement('style'));
 const isDark = () => THEMES[themeName].dark;
 
@@ -1341,7 +1424,7 @@ function mdToHtml(src, top) {
       i++;
       out.push(m[2].trim().toLowerCase() === 'mermaid'
         ? '<pre class="mermaid">' + esc(buf.join('\n')) + '</pre>'
-        : `<pre><code${m[2].trim() ? ' class="language-' + att(m[2].trim()) + '"' : ''}>` + esc(buf.join('\n')) + '</code></pre>');
+        : `<pre><code${m[2].trim() ? ' class="language-' + att(m[2].trim()) + '"' : ''}>` + hlHtml(m[2], buf.join('\n')) + '</code></pre>');
       continue; }
 
     if (/^\s*\$\$\s*$/.test(l)) {
@@ -1428,7 +1511,8 @@ function exportHtml() {
     (hasMermaid ? `<script type="module">import m from '${MERMAID_ESM}';m.initialize({startOnLoad:true,theme:'neutral'});<\/script>\n` : '');
   /* The export carries the active theme's tokens (including Font/Width overrides and a custom css file's token values). */
   const cs = getComputedStyle(document.documentElement);
-  const tokens = ['paper', 'paper-2', 'ink', 'ink-soft', 'ink-faint', 'rule', 'accent', 'code-bg', 'mark', 'sans', 'mono', 'body', 'size', 'lh', 'measure', 'scheme']
+  const tokens = ['paper', 'paper-2', 'ink', 'ink-soft', 'ink-faint', 'rule', 'accent', 'code-bg', 'mark', 'sans', 'mono', 'body', 'size', 'lh', 'measure', 'scheme',
+                  'hl-kw', 'hl-str', 'hl-num', 'hl-cmt', 'hl-fn', 'hl-type', 'hl-attr']
     .map(t => `--${t}:${cs.getPropertyValue('--' + t).trim()}`).join(';');
   const doc = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -1468,8 +1552,7 @@ sup a{text-decoration:none}
 hr{border:0;border-top:1px solid var(--rule);margin:2em 0}
 mark{background:var(--mark)}
 .mathblock{margin:1.2em 0;overflow-x:auto}
-pre.mermaid{background:none;text-align:center}
-@page{margin:${MARGINS[mgi][1]}}
+pre.mermaid{background:none;text-align:center}${HL_CSS}@page{margin:${MARGINS[mgi][1]}}
 @media print{
  :root{--paper:#fff;--paper-2:#f0f0f0;--ink:#000;--ink-soft:#444;--ink-faint:#777;--rule:#ccc;--code-bg:#f3f3f3;--mark:#efe9a4}
  body{background:#fff;color:#000;margin:0;padding:${mgi === 2 ? '0 4mm' : '0'};max-width:none;font-size:11pt;line-height:1.5}
@@ -1610,6 +1693,7 @@ function initMermaid() {
     fontFamily: getComputedStyle(document.body).getPropertyValue('--sans') });
 }
 loadScript(CDN + 'KaTeX/0.17.0/katex.min.js').then(forceRender).catch(() => {});
+loadScript(CDN + 'highlight.js/11.11.1/highlight.min.js').then(forceRender).catch(() => {});
 loadScript(CDN + 'mermaid/11.15.0/mermaid.min.js')
   .then(() => window.mermaid ? null : import(MERMAID_ESM).then(m => { window.mermaid = m.default; }))
   .then(() => { initMermaid(); forceRender(); })

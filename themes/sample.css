@@ -18,6 +18,10 @@
   --sel:        rgba(179, 85, 45, .2);
   --scheme:     light;     /* light | dark — scrollbars and form controls */
 
+  /* code highlighting (highlight.js classes map onto these) */
+  --hl-kw:   #8a3d8f;  --hl-str: #2f7d4f;  --hl-num:  #b3571e;  --hl-cmt: #a19a90;
+  --hl-fn:   #2a63b0;  --hl-type:#a83a26;  --hl-attr: #8a6a1a;
+
   /* type */
   --serif: 'Charter', 'Iowan Old Style', Georgia, serif;
   --sans:  'Avenir Next', 'Helvetica Neue', sans-serif;
