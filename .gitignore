@@ -1,3 +1,4 @@
 .DS_Store
-test/profile/
+test/profile*/
 test/*.png
+test/*.pdf

@@ -127,6 +127,7 @@ python3 -m http.server 8765 &
 node test/cdp.mjs http://localhost:8765/test/themes.html
 node test/cdp.mjs http://localhost:8765/test/highlight.html
 node test/cdp.mjs http://localhost:8765/test/shot.html shot.png   # screenshot only
+node test/pdf.mjs http://localhost:8765/sumi.html out.pdf            # print a sample doc, reports page count
 ```
 
 Each harness loads `sumi.html` in an iframe and reports PASS/FAIL lines. The
@@ -169,6 +170,8 @@ known caret offset survives a render.
   natural next feature.
 - Width, typeface, margin and page breaks are not persisted — only the draft,
   the theme and any custom CSS are.
+- Print is deliberately Typora-like (sans, 10pt, 1.4 leading, half-height
+  blank lines, narrow margin by default) regardless of the screen theme.
 - Mermaid redraws on a 450 ms pause. Large diagrams will feel it.
 - The `~~~` fence and setext heading paths are the least exercised code.
 

@@ -19,7 +19,7 @@ const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.a
   ok(!!$('#themes .mi[data-act=css]'),'menu has load css');
   ok(cv('--measure')==='56em' && $('#bWide').textContent==='Width: regular','default measure 56em / regular: '+cv('--measure')+' '+$('#bWide').textContent);
   const line=$('#editor .line').getBoundingClientRect();
-  ok(line.width>800 && line.width<900,'paper text column ~875px wide: '+Math.round(line.width));
+  ok(line.width>950 && line.width<1000,'paper text column ~973px wide: '+Math.round(line.width));
   $('#bTheme').click();
   ok($('#themes').classList.contains('show')&&$('#bTheme').getAttribute('aria-expanded')==='true','menu opens');
   d.body.click();
@@ -32,7 +32,7 @@ const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.a
   ok($('#bFont').textContent==='Sans','night font label '+$('#bFont').textContent);
   ok(w.getComputedStyle(d.documentElement).colorScheme==='dark','color-scheme dark');
   await sleep(350); const nl=$('#editor .line').getBoundingClientRect();
-  ok(nl.width>900 && nl.width<1000,'night text column ~963px: '+Math.round(nl.width));
+  ok(nl.width>1030 && nl.width<1090,'night text column ~1061px: '+Math.round(nl.width));
   ok(w.getComputedStyle($('#editor .line.h1')).color==='rgb(244, 244, 244)','night h1 near white: '+w.getComputedStyle($('#editor .line.h1')).color);
   dark();
   ok(d.documentElement.dataset.theme==='github','cmd-shift-D from night -> github: '+d.documentElement.dataset.theme);

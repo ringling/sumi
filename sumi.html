@@ -27,7 +27,7 @@
   --body:var(--serif);
   --size:19px;
   --measure:56em;      /* page measure incl. side margins; Typora-like column */
-  --pmargin:2.5cm;   /* page margin: shown on screen as side padding, and as @page for print */
+  --pmargin:1.2cm;   /* page margin: shown on screen as side padding, and as @page for print */
   --lh:1.72;
   --scheme:light;    /* dark themes set this to dark so scrollbars and form controls follow */
 
@@ -327,12 +327,20 @@ kbd{
 @media print{
   #bar,#outline,#count,#toast,#help,#themes{display:none!important}
   html,html[data-theme]{--paper:#fff; --paper-2:#f0f0f0; --ink:#000; --ink-soft:#444; --ink-faint:#777; --rule:#ccc; --code-bg:#f3f3f3; --mark:#efe9a4}
-  body{background:#fff; color:#000; font-size:11pt; --lh:1.5}
+  /* compact, Typora-like page: sans, 10pt, tight leading, half-height blank lines */
+  body{background:#fff; color:#000; --body:var(--sans); font-size:10pt; --lh:1.4}
   #wrap{overflow:visible; padding:0}
   #editor{max-width:none; padding:0}
   body.nomargin #editor{padding:0 4mm}
-  .tok,.src{display:none}
+  .tok,.src,.lang{display:none}
   .line{opacity:1!important; min-height:0}
+  .line.empty{font-size:.5em}
+  .h{margin:1.1em 0 .15em}
+  .line.h1{margin-top:.8em} .line:first-child{margin-top:0}
+  .h1{font-size:1.6em} .h2{font-size:1.3em} .h3{font-size:1.12em}
+  .quote{font-style:normal}
+  .code,.fence{font-size:.84em; line-height:1.45}
+  .prev{margin:.4em 0}
   .prev{display:block!important}
   .prev table,.code,.fence,pre{break-inside:avoid}
   .h{break-after:avoid}
@@ -357,7 +365,7 @@ kbd{
   <span class="dot"></span>
   <button class="b" id="bOpen" title="Open — Cmd O">Open</button>
   <button class="b" id="bSave" title="Save markdown — Cmd S">Save</button>
-  <button class="b" id="bMargin" title="Page margins: on screen, when printing and in PDF">Margin: wide</button>
+  <button class="b" id="bMargin" title="Page margins: on screen, when printing and in PDF">Margin: narrow</button>
   <button class="b" id="bPages" aria-pressed="false" title="Start a new page at every # and ## when printing or exporting">Pages</button>
   <button class="b" id="bHtml" title="Export HTML — Cmd Shift E">HTML</button>
   <button class="b" id="bHelp" title="Shortcuts — Cmd /">?</button>
@@ -1194,7 +1202,7 @@ $('#bPages').onclick = () => toggle('pagebreak', $('#bPages'));
    applied to the printed page via @page. @page can't be switched with a class,
    so its rule is rewritten in place. */
 const MARGINS = [['wide', '2.5cm'], ['narrow', '1.2cm'], ['none', '0cm']];
-let mgi = 0;
+let mgi = 1;
 const pageStyle = document.head.appendChild(document.createElement('style'));
 function applyMargin() {
   pageStyle.textContent = '@page{margin:' + MARGINS[mgi][1] + '}';
@@ -1555,7 +1563,11 @@ mark{background:var(--mark)}
 pre.mermaid{background:none;text-align:center}${HL_CSS}@page{margin:${MARGINS[mgi][1]}}
 @media print{
  :root{--paper:#fff;--paper-2:#f0f0f0;--ink:#000;--ink-soft:#444;--ink-faint:#777;--rule:#ccc;--code-bg:#f3f3f3;--mark:#efe9a4}
- body{background:#fff;color:#000;margin:0;padding:${mgi === 2 ? '0 4mm' : '0'};max-width:none;font-size:11pt;line-height:1.5}
+ body{background:#fff;color:#000;margin:0;padding:${mgi === 2 ? '0 4mm' : '0'};max-width:none;font-family:var(--sans);font-size:10pt;line-height:1.4}
+ h1,h2,h3,h4{margin:1.1em 0 .15em} h1:first-child{margin-top:0}
+ h1{font-size:1.6em}h2{font-size:1.3em}h3{font-size:1.12em}
+ p,ul,ol,blockquote{margin:.5em 0} blockquote{font-style:normal}
+ pre{padding:.6em .8em;font-size:.84em;line-height:1.45}
  table,pre,.mathblock{break-inside:avoid}
  h1,h2,h3,h4{break-after:avoid}
  p{orphans:3;widows:3}
