@@ -76,7 +76,7 @@ Add a new block type by giving it a `blk`, a `kind`, and a branch in
 | document scan | `scan()` — stateful pass: fences, math, tables, setext, refs, heading slugs |
 | line rendering | `renderLine` / `coreLine` |
 | syntax highlighting | `hlLang`, `hlRun`, `hlBlock`, `hlSplit`, `HL_CSS` |
-| chrome behaviour | `toggle`, the shared `openMenu` popup, the Numbers menu |
+| chrome behaviour | `toggle`, the shared `openMenu` popup, the View / Theme / Page / File menus |
 | math & diagrams | KaTeX, Mermaid, `renderPreviews` |
 | DOM <-> text | the three walkers. Treat as load-bearing |
 | render / state | reconciliation, history, `setText`, `sync` |
@@ -137,9 +137,17 @@ the screenshot checks the value. Export mirrors all three with the same
 counters on `<pre class="linenos">` (one `<span class="ln">` per line, cut
 with `hlSplit`), `body.hnums` and `body.eqnos`.
 
-The Theme and Numbers buttons share one popup, `openMenu(btn, items)`, which
-builds `#menu` lazily on each open. Tests must open the menu before querying
-its items.
+## Toolbar menus
+
+The bar is five buttons: View, Theme, Page, File and help. Each menu button
+calls `openMenu(btn, build)`; `build()` returns the items and runs on every
+(re)render, so items read their state straight from `body` classes and the
+`wi`/`fi`/`mgi` indices. There is no button state to keep in sync. Item kinds:
+`check` (body-class toggle with a check mark), `cycle` (a value that advances
+on click and keeps the menu open, via `keep`), radio (themes) and plain
+actions. `data-n`, `data-v`, `data-t` and `data-act` attributes exist for the
+harnesses, which drive everything through the menus (`mclick`, `mlabel`,
+`mon`, `themeOn` helpers at the top of each harness).
 
 Settings record (`sumi:settings`): theme, custom CSS, width, font, margin,
 pages and the three numbering flags. Width and font store `-1` when a theme's
@@ -174,8 +182,9 @@ node test/cdp.mjs http://localhost:8765/test/highlight.html
 node test/cdp.mjs http://localhost:8765/test/small.html      # numbering, front matter, list cycling, settings
 node test/cdp.mjs http://localhost:8765/test/toc.html        # [TOC], slugs, internal links, export ids
 node test/cdp.mjs http://localhost:8765/test/source.html     # source mode
-node test/probe.mjs "<setup js>" print "<eval js>"           # one-off: load, run setup, emulate media, evaluate
+node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
+node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
 node test/pdf.mjs http://localhost:8765/sumi.html out.pdf            # print a sample doc, reports page count
 ```
 

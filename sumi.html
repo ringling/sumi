@@ -140,15 +140,18 @@ button.b[aria-pressed="true"]{background:var(--accent); color:var(--paper)}
 button.b:focus-visible, #name:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
 .dot{width:1px;height:16px;background:var(--rule);margin:0 6px}
 #menu{
-  position:fixed; top:46px; z-index:25; display:none; min-width:13em; padding:6px;
+  position:fixed; top:46px; z-index:25; display:none; min-width:15em; padding:6px;
   background:var(--paper); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow);
   font-family:var(--sans); font-size:12.5px;
 }
 #menu.show{display:block}
 #menu .mi{
-  display:block; width:100%; text-align:left; font:inherit; color:var(--ink); background:none;
+  display:flex; justify-content:space-between; align-items:center; gap:2.2em;
+  width:100%; text-align:left; font:inherit; color:var(--ink); background:none;
   border:0; padding:6px 10px 6px 26px; border-radius:6px; cursor:pointer; position:relative;
 }
+#menu .mi span,#menu .mi kbd{white-space:nowrap}
+#menu .mi kbd{font-family:var(--sans); font-size:11px; color:var(--ink-faint); background:none; border:0; padding:0}
 #menu .mi:hover,#menu .mi:focus-visible{background:var(--paper-2); outline:none}
 #menu .mi.on::before{content:'✓'; position:absolute; left:9px; color:var(--accent)}
 #menu hr{border:0; border-top:1px solid var(--rule); margin:6px 0}
@@ -425,21 +428,10 @@ kbd{
 <div id="bar">
   <input id="name" value="untitled.md" spellcheck="false" aria-label="File name">
   <span class="sp"></span>
-  <button class="b" id="bOutline" aria-pressed="false" title="Outline — Cmd \">Outline</button>
-  <button class="b" id="bFocus" aria-pressed="false" title="Focus mode — Cmd Shift F">Focus</button>
-  <button class="b" id="bType" aria-pressed="false" title="Typewriter — Cmd Shift T">Typewriter</button>
-  <button class="b" id="bSource" aria-pressed="false" title="Source code mode — Cmd Shift U">Source</button>
-  <span class="dot"></span>
-  <button class="b" id="bWide" title="Line width on screen — narrow, regular, wide, max">Width: regular</button>
-  <button class="b" id="bFont" title="Typeface">Serif</button>
-  <button class="b" id="bTheme" aria-haspopup="menu" aria-expanded="false" title="Theme — Cmd Shift D flips light/dark">Theme: Paper</button>
-  <span class="dot"></span>
-  <button class="b" id="bOpen" title="Open — Cmd O">Open</button>
-  <button class="b" id="bSave" title="Save markdown — Cmd S">Save</button>
-  <button class="b" id="bMargin" title="Page margins: on screen, when printing and in PDF">Margin: narrow</button>
-  <button class="b" id="bPages" aria-pressed="false" title="Start a new page at every # and ## when printing or exporting">Pages</button>
-  <button class="b" id="bNums" aria-haspopup="menu" aria-expanded="false" title="Code line numbers, heading numbers, equation numbers">Numbers</button>
-  <button class="b" id="bHtml" title="Export HTML — Cmd Shift E">HTML</button>
+  <button class="b" id="bView" aria-haspopup="menu" aria-expanded="false" title="Outline, focus, typewriter, source code; width and typeface">View</button>
+  <button class="b" id="bTheme" aria-haspopup="menu" aria-expanded="false" title="Theme — Cmd Shift D flips light/dark">Theme</button>
+  <button class="b" id="bPage" aria-haspopup="menu" aria-expanded="false" title="Margin, page breaks, numbering">Page</button>
+  <button class="b" id="bFile" aria-haspopup="menu" aria-expanded="false" title="Open, save, copy, export, print">File</button>
   <button class="b" id="bHelp" title="Shortcuts — Cmd /">?</button>
 </div>
 
@@ -466,15 +458,14 @@ kbd{
     <tr><td><kbd>⌘S</kbd> <kbd>⌘O</kbd></td><td>save, open</td></tr>
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
-    <tr><td>Pages</td><td>break to a new page at each # and ## when printing</td></tr>
-    <tr><td>Numbers</td><td>code line numbers, heading numbers (1.2.3), equation numbers</td></tr>
+    <tr><td>View</td><td>outline, focus, typewriter, source code; line width and typeface</td></tr>
+    <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3) and equation numbers</td></tr>
+    <tr><td>File</td><td>open, save, copy markdown, export HTML, print or PDF</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
     <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
     <tr><td><kbd>[TOC]</kbd></td><td>table of contents built from the headings; <kbd>[text](#heading)</kbd> links jump to a heading</td></tr>
     <tr><td>Theme</td><td>Paper, Ink, GitHub, Whitey, Newsprint, Sepia, Night — <kbd>⌘⇧D</kbd> flips light/dark</td></tr>
     <tr><td>Custom theme</td><td>load a .css file from the Theme menu, or drop it on the window; see <kbd>themes/sample.css</kbd></td></tr>
-    <tr><td>Width</td><td>line width on screen — narrow, regular, wide, max</td></tr>
-    <tr><td>Margin</td><td>page margins on screen, print and PDF — wide, narrow, none</td></tr>
     <tr><td><kbd>$x$</kbd> <kbd>$$…$$</kbd></td><td>inline and block LaTeX (KaTeX)</td></tr>
     <tr><td><kbd>```mermaid</kbd></td><td>diagram block, drawn below the source</td></tr>
     <tr><td><kbd>```js</kbd></td><td>code fences with a language are syntax highlighted (highlight.js)</td></tr>
@@ -1335,14 +1326,14 @@ document.addEventListener('keydown', e => {
   if (k === 'y') { e.preventDefault(); redo(); return; }
   if (k === 's') { e.preventDefault(); saveMd(); return; }
   if (k === 'o') { e.preventDefault(); $('#picker').click(); return; }
-  if (k === '\\') { e.preventDefault(); toggle('outline', $('#bOutline')); buildOutline(); return; }
+  if (k === '\\') { e.preventDefault(); toggle('outline'); return; }
   if (k === '/') { e.preventDefault(); $('#help').classList.toggle('show'); return; }
   if (k === 'e' && e.shiftKey) { e.preventDefault(); exportHtml(); return; }
-  if (k === 'f' && e.shiftKey) { e.preventDefault(); toggle('focus', $('#bFocus')); updateActive(); return; }
-  if (k === 't' && e.shiftKey) { e.preventDefault(); toggle('typewriter', $('#bType')); updateActive(); return; }
+  if (k === 'f' && e.shiftKey) { e.preventDefault(); toggle('focus'); return; }
+  if (k === 't' && e.shiftKey) { e.preventDefault(); toggle('typewriter'); return; }
   if (k === 'd' && e.shiftKey) { e.preventDefault(); toggleDark(); return; }
   if (k === 'r' && e.shiftKey) { e.preventDefault(); document.documentElement.classList.toggle('reveal'); return; }
-  if (k === 'u' && e.shiftKey) { e.preventDefault(); toggle('source', $('#bSource')); return; }
+  if (k === 'u' && e.shiftKey) { e.preventDefault(); toggle('source'); return; }
   if (document.activeElement !== editor) return;
   if (k === 'b') { e.preventDefault(); wrapSel('**'); return; }
   if (k === 'i') { e.preventDefault(); wrapSel('*'); return; }
@@ -1362,29 +1353,44 @@ document.addEventListener('keydown', e => {
 /* ── chrome behaviour ─────────────────────────────────────────────────── */
 addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY < 70));
 $('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
-function toggle(cls, btn) {
+/* View-state classes on body. The menus read them back, so there is no button
+   state to keep in sync; the persisted ones are written on every change. */
+const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos'];
+function toggle(cls) {
   const on = document.body.classList.toggle(cls);
-  btn.setAttribute('aria-pressed', on);
-  if (cls === 'pagebreak') storeSettings();
-  if (cls !== 'focus') return;
-  if (!on) for (const el of editor.children) el.classList.remove('near');
+  if (PERSISTED.includes(cls)) storeSettings();
+  if (cls === 'focus' && !on) for (const el of editor.children) el.classList.remove('near');
+  if (cls === 'focus' || cls === 'typewriter') updateActive();
+  if (cls === 'outline') buildOutline();
+  return on;
 }
 
-/* One popup menu shared by the Theme and Numbers buttons. Items are
-   {label, on, act, data?}; a '-' item is a separator. */
-let menuBtn = null;
-function openMenu(btn, items) {
+/* One popup shared by the bar's menu buttons. openMenu(btn, build) calls
+   build() for the items each time the menu (re)renders: {label, act, on?,
+   radio?, hint?, keep?, data?}; '-' is a separator. `on` draws a check mark,
+   `hint` a shortcut, `keep` re-renders instead of closing (value cyclers),
+   `data` adds attributes for tests. */
+let menuBtn = null, menuBuild = null;
+function renderMenu() {
+  const items = menuBuild(), m = $('#menu');
+  m.innerHTML = items.map((it, i) => it === '-' ? '<hr>' :
+    `<button class="mi${it.on ? ' on' : ''}" role="${it.radio ? 'menuitemradio' : it.on === undefined ? 'menuitem' : 'menuitemcheckbox'}"` +
+    `${it.on === undefined ? '' : ` aria-checked="${it.on}"`} data-i="${i}"${it.data ? ' ' + it.data : ''}>` +
+    `<span>${it.label}</span>${it.hint ? `<kbd>${it.hint}</kbd>` : ''}</button>`).join('');
+  m.onclick = e => {
+    const b = e.target.closest('.mi'); if (!b) return;
+    e.stopPropagation();
+    const it = items[+b.dataset.i];
+    if (it.keep) { it.act(); renderMenu(); } else { closeMenu(); it.act(); }
+  };
+}
+function openMenu(btn, build) {
   const m = $('#menu');
   if (menuBtn === btn && m.classList.contains('show')) { closeMenu(); return; }
   closeMenu();
-  m.innerHTML = items.map((it, i) => it === '-' ? '<hr>' :
-    `<button class="mi${it.on ? ' on' : ''}" role="${it.radio ? 'menuitemradio' : 'menuitemcheckbox'}" aria-checked="${!!it.on}" data-i="${i}"${it.data ? ' ' + it.data : ''}>${it.label}</button>`).join('');
-  m.onclick = e => {
-    const b = e.target.closest('.mi'); if (!b) return;
-    e.stopPropagation(); closeMenu(); items[+b.dataset.i].act();
-  };
-  m.style.left = Math.min(btn.getBoundingClientRect().left, innerWidth - 220) + 'px';
-  m.classList.add('show'); btn.setAttribute('aria-expanded', 'true'); menuBtn = btn;
+  menuBtn = btn; menuBuild = build; renderMenu();
+  m.classList.add('show'); btn.setAttribute('aria-expanded', 'true');
+  m.style.left = Math.max(8, Math.min(btn.getBoundingClientRect().left, innerWidth - m.offsetWidth - 8)) + 'px';
   $('#bar').classList.add('show');
   (m.querySelector('.mi.on') || m.querySelector('.mi'))?.focus();
 }
@@ -1394,21 +1400,38 @@ function closeMenu() {
   menuBtn = null;
 }
 addEventListener('click', closeMenu);
+const menuButton = (id, build) => { $('#' + id).onclick = e => { e.stopPropagation(); openMenu($('#' + id), build); }; };
+const check = (cls, label, hint) => ({ label, hint, on: document.body.classList.contains(cls), data: `data-n="${cls}"`, act: () => toggle(cls) });
+const cycle = (key, label, act) => ({ label, keep: true, data: `data-v="${key}"`, act });
 
-/* Numbers menu: three body-class toggles, all persisted. */
 const NUMS = [['linenos', 'Code line numbers'], ['hnums', 'Heading numbers'], ['eqnos', 'Equation numbers']];
-$('#bNums').onclick = e => {
-  e.stopPropagation();
-  openMenu($('#bNums'), NUMS.map(([cls, label]) => ({
-    label, on: document.body.classList.contains(cls), data: `data-n="${cls}"`,
-    act: () => { document.body.classList.toggle(cls); storeSettings(); }
-  })));
-};
-$('#bOutline').onclick = () => { toggle('outline', $('#bOutline')); buildOutline(); };
-$('#bFocus').onclick = () => { toggle('focus', $('#bFocus')); updateActive(); };
-$('#bType').onclick = () => { toggle('typewriter', $('#bType')); updateActive(); };
-$('#bSource').onclick = () => toggle('source', $('#bSource'));
-$('#bPages').onclick = () => toggle('pagebreak', $('#bPages'));
+menuButton('bView', () => [
+  check('outline', 'Outline', '⌘\\'),
+  check('focus', 'Focus mode', '⌘⇧F'),
+  check('typewriter', 'Typewriter', '⌘⇧T'),
+  check('source', 'Source code', '⌘⇧U'),
+  '-',
+  cycle('width', 'Width: ' + widthLabel(), () => { wi = (wi + 1) % WIDTHS.length; applyWidth(); storeSettings(); }),
+  cycle('font', 'Typeface: ' + fontLabel(), () => { fi = (fi + 1) % FONTS.length; applyFont(); storeSettings(); }),
+]);
+menuButton('bPage', () => [
+  cycle('margin', 'Margin: ' + MARGINS[mgi][0], () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); storeSettings(); }),
+  '-',
+  check('pagebreak', 'Page break at # and ##'),
+  ...NUMS.map(([cls, label]) => check(cls, label)),
+]);
+menuButton('bFile', () => [
+  { label: 'Open…', hint: '⌘O', data: 'data-act="open"', act: () => $('#picker').click() },
+  { label: 'Save', hint: '⌘S', data: 'data-act="save"', act: saveMd },
+  '-',
+  { label: 'Copy markdown', data: 'data-act="copy"', act: copySource },
+  { label: 'Export HTML', hint: '⌘⇧E', data: 'data-act="html"', act: exportHtml },
+  { label: 'Print or PDF', hint: '⌘P', data: 'data-act="print"', act: () => print() },
+]);
+async function copySource() {
+  try { await navigator.clipboard.writeText(text); toast('Copied markdown, ' + text.length + ' characters'); }
+  catch (e) { toast('Copy failed: the browser refused clipboard access'); }
+}
 
 /* The margin is shown on screen as the editor's side padding (via --pmargin) and
    applied to the printed page via @page. @page can't be switched with a class,
@@ -1419,10 +1442,8 @@ const pageStyle = document.head.appendChild(document.createElement('style'));
 function applyMargin() {
   pageStyle.textContent = '@page{margin:' + MARGINS[mgi][1] + '}';
   document.documentElement.style.setProperty('--pmargin', MARGINS[mgi][1]);
-  $('#bMargin').textContent = 'Margin: ' + MARGINS[mgi][0];
   document.body.classList.toggle('nomargin', mgi === 2);
 }
-$('#bMargin').onclick = () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); storeSettings(); };
 applyMargin();
 
 /* Width is the page measure on screen: the text column plus the side margins,
@@ -1431,17 +1452,15 @@ const WIDTHS = [['narrow', '44em'], ['regular', '56em'], ['wide', '68em'], ['max
 let wi = 1;
 function applyWidth() {
   document.documentElement.style.setProperty('--measure', WIDTHS[wi][1]);
-  $('#bWide').textContent = 'Width: ' + WIDTHS[wi][0];
 }
-$('#bWide').onclick = () => { wi = (wi + 1) % WIDTHS.length; applyWidth(); storeSettings(); };
+const widthLabel = () => wi < 0 ? 'theme' : WIDTHS[wi][0];
 applyWidth();
 const FONTS = [['Serif', 'var(--serif)'], ['Sans', 'var(--sans)'], ['Mono', 'var(--mono)']];
 let fi = 0;
 function applyFont() {
   document.documentElement.style.setProperty('--body', FONTS[fi][1]);
-  $('#bFont').textContent = FONTS[fi][0];
 }
-$('#bFont').onclick = () => { fi = (fi + 1) % FONTS.length; applyFont(); storeSettings(); };
+const fontLabel = () => fi < 0 ? 'theme' : FONTS[fi][0];
 
 /* ── themes ──────────────────────────────────────────────────────────────
    Built-in themes are CSS blocks on html[data-theme]; this table only names
@@ -1469,9 +1488,7 @@ function syncTypography() {
   const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
   const body = v('--body');
   fi = FONTS.findIndex(f => v(f[1].slice(4, -1)) === body);
-  $('#bFont').textContent = fi < 0 ? 'Font' : FONTS[fi][0];
   wi = WIDTHS.findIndex(w => w[1] === v('--measure'));
-  $('#bWide').textContent = 'Width: ' + (wi < 0 ? 'theme' : WIDTHS[wi][0]);
 }
 function refreshDiagrams() {
   initMermaid();
@@ -1484,7 +1501,6 @@ function setTheme(name, save = true) {
   document.documentElement.style.removeProperty('--body');
   document.documentElement.style.removeProperty('--measure');
   syncTypography();
-  $('#bTheme').textContent = 'Theme: ' + THEMES[name].label;
   refreshDiagrams();
   if (save) storeSettings();
 }
@@ -1497,14 +1513,13 @@ function setUserCSS(css, save = true) {
 }
 function toggleDark() { setTheme(THEMES[themeName].pair); }
 
-$('#bTheme').onclick = e => {
-  e.stopPropagation();
+menuButton('bTheme', () => {
   const items = Object.entries(THEMES).map(([k, t]) =>
     ({ label: t.label, on: k === themeName, radio: true, data: `data-t="${k}"`, act: () => setTheme(k) }));
   items.push('-', { label: 'Load .css theme…', data: 'data-act="css"', act: () => $('#csspicker').click() });
   if (userCSS) items.push({ label: 'Remove custom css', on: true, data: 'data-act="clear"', act: () => { setUserCSS(''); toast('Custom css removed'); } });
-  openMenu($('#bTheme'), items);
-};
+  return items;
+});
 $('#csspicker').onchange = e => {
   const f = e.target.files[0]; if (!f) return;
   f.text().then(t => { setUserCSS(t); toast('Loaded theme ' + f.name); });
@@ -1546,8 +1561,6 @@ async function saveMd() {
   download(new Blob([data], { type: 'text/markdown' }), fileName() + '.md');
   toast('Downloaded ' + fileName() + '.md');
 }
-$('#bSave').onclick = saveMd;
-$('#bOpen').onclick = () => $('#picker').click();
 $('#picker').onchange = e => {
   const f = e.target.files[0]; if (!f) return;
   f.text().then(t => {
@@ -1797,7 +1810,6 @@ ${mdToHtml(text, true)}
   download(new Blob([doc], { type: 'text/html' }), title + '.html');
   toast('Exported ' + title + '.html');
 }
-$('#bHtml').onclick = exportHtml;
 $('#name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); editor.focus(); } });
 
 /* ── draft persistence ────────────────────────────────────────────────── */
@@ -1904,7 +1916,7 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
     if (prefs.width >= 0 && prefs.width < WIDTHS.length) { wi = prefs.width; applyWidth(); }
     if (prefs.font >= 0 && prefs.font < FONTS.length) { fi = prefs.font; applyFont(); }
     if (prefs.margin >= 0 && prefs.margin < MARGINS.length) { mgi = prefs.margin; applyMargin(); }
-    if (prefs.pages) { document.body.classList.add('pagebreak'); $('#bPages').setAttribute('aria-pressed', 'true'); }
+    if (prefs.pages) document.body.classList.add('pagebreak');
     for (const [cls] of NUMS) if (prefs[cls]) document.body.classList.add(cls);
   }
   if (saved && saved.text) { $('#name').value = saved.name || 'untitled.md'; setText(saved.text, 0, 0, false); }

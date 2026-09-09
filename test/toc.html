@@ -7,6 +7,10 @@ const f=document.getElementById('f');
 const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,400); });
 let w,d,$,$$;
 const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const mlabel=(id,sel)=>{ $('#'+id).click(); const t=$('#menu '+sel).querySelector('span').textContent; d.body.click(); return t; };
+const mon=(id,sel)=>{ $('#'+id).click(); const on=$('#menu '+sel).classList.contains('on'); d.body.click(); return on; };
+const themeOn=()=>{ $('#bTheme').click(); const t=($('#menu .mi.on[data-t]')||{dataset:{}}).dataset.t; d.body.click(); return t; };
 const src=['# Top','','[TOC]','','Jump to [the second part](#second-part-1) or [nowhere](#missing).','','## Second part','','text','','## Second part','','### **Bold** & co.','',...Array(40).fill('filler line'),'','## Far down','','end',''];
 const md=src.join('\n');
 const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(300); };
@@ -53,12 +57,12 @@ const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.create
   // heading numbers flow into the toc
   const tn=()=>[...$$('#editor .line')[2].querySelectorAll('ul.toc .tn')];
   ok(tn().length===6&&w.getComputedStyle(tn()[0]).display==='none','toc numbers present but hidden by default');
-  $('#bNums').click(); $('#menu .mi[data-n=hnums]').click(); await sleep(100);
+  mclick('bPage','[data-n=hnums]'); await sleep(100);
   ok(w.getComputedStyle(tn()[0]).display==='inline','toc numbers shown with heading numbers on');
   ok(tn().map(e=>e.textContent.trim()).join(' ')==='1. 1.1 1.2 1.3 1.3.1 1.4','toc numbers match the heading counters: '+tn().map(e=>e.textContent.trim()).join(' '));
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
-  $('#bHtml').click(); await sleep(100); const html=await blob.text();
+  mclick('bFile','[data-act=html]'); await sleep(100); const html=await blob.text();
   ok(/<h1 id="top">Top<\/h1>/.test(html),'export h1 id');
   ok(/<h2 id="second-part">/.test(html)&&/<h2 id="second-part-1">/.test(html)&&/<h3 id="bold-co">/.test(html),'export duplicate and punctuation ids match the editor');
   ok(/<ul class="toc">.*href="#far-down"/.test(html)&&!/data-line/.test(html),'export toc without editor-only attributes');

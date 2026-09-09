@@ -11,8 +11,9 @@ f.onload=async()=>{ if(first){ first=false; f.contentWindow.localStorage.clear()
   const dt=new w.DataTransfer(); dt.items.add(new w.File([md],'t.md',{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true}));
   await sleep(300); const [theme,...flags]=(location.hash.slice(1)||'night').split(',');
   d.querySelector('#bTheme').click(); d.querySelector('#menu .mi[data-t='+theme+']').click();
-  for(const fl of flags){ if(fl==='source'){ d.querySelector('#bSource').click(); continue; } d.querySelector('#bNums').click(); d.querySelector('#menu .mi[data-n='+fl+']').click(); }
+  for(const fl of flags){ if(fl==='source'){ d.querySelector('#bView').click(); d.querySelector('#menu .mi[data-n=source]').click(); continue; } d.querySelector('#bPage').click(); d.querySelector('#menu .mi[data-n='+fl+']').click(); }
   if(flags.length){ const r=d.createRange(); r.setStart(d.querySelector('#editor .line'),0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); }
+  if(/^\?menu=/.test(location.search)){ d.querySelector('#'+location.search.slice(6)).click(); }
   if(location.search==='?code'){ d.querySelector('#wrap').scrollTop=d.querySelector('.line.fence').offsetTop-60; }
   let t=0; while(!d.querySelector('.hljs-keyword')&&t++<40) await sleep(250);
   d.querySelector('#bar').classList.add('show'); w.scrollTo(0,0); await sleep(600);

@@ -7,6 +7,10 @@ const f=document.getElementById('f');
 const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,400); });
 let w,d,$,$$;
 const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const mlabel=(id,sel)=>{ $('#'+id).click(); const t=$('#menu '+sel).querySelector('span').textContent; d.body.click(); return t; };
+const mon=(id,sel)=>{ $('#'+id).click(); const on=$('#menu '+sel).classList.contains('on'); d.body.click(); return on; };
+const themeOn=()=>{ $('#bTheme').click(); const t=($('#menu .mi.on[data-t]')||{dataset:{}}).dataset.t; d.body.click(); return t; };
 const T='\x60\x60\x60';
 const md=['# T','',T+'js','// note','const x = 1; /* start','end */ return x;','',T,'',T+'python','def f():','    """doc','    more"""',"    return 'a'",T,'',T+'nosuchlang','foo bar',T,'',T+'mermaid','graph TD; A-->B',T,''].join('\n');
 const srcLines=md.split('\n');
@@ -55,7 +59,7 @@ const pick=name=>{ $('#bTheme').click(); $('#menu .mi[data-t='+name+']').click()
   ok($$('#editor .line')[5].textContent==='end */ return x;ZY','second char appended in order: '+JSON.stringify($$('#editor .line')[5].textContent));
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
-  $('#bHtml').click(); await sleep(100); const html=await blob.text();
+  mclick('bFile','[data-act=html]'); await sleep(100); const html=await blob.text();
   ok(/<pre><code class="language-js">[^]*hljs-keyword/.test(html),'export highlights js fence');
   ok(/<pre><code class="language-nosuchlang">foo bar<\/code>/.test(html),'export leaves unknown language plain');
   ok(/\.hljs-keyword[^{]*\{color:var\(--hl-kw\)\}/.test(html) && /--hl-kw:#7b3fa0/.test(html),'export ships highlight css and tokens');
