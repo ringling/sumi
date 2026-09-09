@@ -252,7 +252,7 @@ kbd{
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
   #bar,#outline,#count,#toast,#help{display:none!important}
-  body{background:#fff; color:#000}
+  body{background:#fff; color:#000; font-size:11pt; --lh:1.5}
   #wrap{overflow:visible; padding:0}
   #editor{max-width:none; padding:0}
   body.nomargin #editor{padding:0 4mm}
@@ -1317,7 +1317,7 @@ mark{background:#d9e6a8}
 pre.mermaid{background:none;text-align:center}
 @page{margin:${MARGINS[mgi][1]}}
 @media print{
- body{background:#fff;margin:0;padding:${mgi === 2 ? '0 4mm' : '0'};max-width:none}
+ body{background:#fff;margin:0;padding:${mgi === 2 ? '0 4mm' : '0'};max-width:none;font-size:11pt;line-height:1.5}
  table,pre,.mathblock{break-inside:avoid}
  h1,h2,h3,h4{break-after:avoid}
  p{orphans:3;widows:3}
