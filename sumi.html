@@ -27,6 +27,7 @@
   --body:var(--serif);
   --size:19px;
   --measure:34em;
+  --pmargin:2.5cm;   /* page margin: shown on screen as side padding, and as @page for print */
   --lh:1.72;
 }
 html[data-theme="ink"]{
@@ -117,10 +118,10 @@ body.outline #outline{transform:none}
 body.outline #wrap{padding-left:230px}
 #editor{
   max-width:var(--measure); margin:0 auto;
-  padding:16vh 26px 60vh;
+  padding:16vh max(4mm, var(--pmargin)) 60vh;
   outline:none; line-height:var(--lh);
   caret-color:var(--accent);
-  transition:max-width .2s ease;
+  transition:max-width .2s ease, padding .2s ease;
 }
 body.typewriter #editor{padding-bottom:52vh; padding-top:44vh}
 
@@ -243,7 +244,7 @@ kbd{
 }
 
 @media (max-width:720px){
-  #editor{padding:12vh 18px 60vh}
+  #editor{padding:12vh min(18px, max(4mm, var(--pmargin))) 60vh}
   body.outline #wrap{padding-left:0}
   #outline{width:78vw}
   #name{width:8em}
@@ -281,7 +282,7 @@ kbd{
   <span class="dot"></span>
   <button class="b" id="bOpen" title="Open — Cmd O">Open</button>
   <button class="b" id="bSave" title="Save markdown — Cmd S">Save</button>
-  <button class="b" id="bMargin" title="Page margins for printing and PDF">Margin: wide</button>
+  <button class="b" id="bMargin" title="Page margins: on screen, when printing and in PDF">Margin: wide</button>
   <button class="b" id="bPages" aria-pressed="false" title="Start a new page at every # and ## when printing or exporting">Pages</button>
   <button class="b" id="bHtml" title="Export HTML — Cmd Shift E">HTML</button>
   <button class="b" id="bHelp" title="Shortcuts — Cmd /">?</button>
@@ -308,7 +309,7 @@ kbd{
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
     <tr><td>Pages</td><td>break to a new page at each # and ## when printing</td></tr>
-    <tr><td>Margin</td><td>page margins for print and PDF — wide, narrow, none</td></tr>
+    <tr><td>Margin</td><td>page margins on screen, print and PDF — wide, narrow, none</td></tr>
     <tr><td><kbd>$x$</kbd> <kbd>$$…$$</kbd></td><td>inline and block LaTeX (KaTeX)</td></tr>
     <tr><td><kbd>```mermaid</kbd></td><td>diagram block, drawn below the source</td></tr>
     <tr><td><kbd>Esc</kbd></td><td>close this</td></tr>
@@ -1037,12 +1038,15 @@ $('#bFocus').onclick = () => { toggle('focus', $('#bFocus')); updateActive(); };
 $('#bType').onclick = () => { toggle('typewriter', $('#bType')); updateActive(); };
 $('#bPages').onclick = () => toggle('pagebreak', $('#bPages'));
 
-/* @page can't be switched with a class, so its rule is rewritten in place. */
-const MARGINS = [['wide', '2.5cm'], ['narrow', '1.2cm'], ['none', '0']];
+/* The margin is shown on screen as the editor's side padding (via --pmargin) and
+   applied to the printed page via @page. @page can't be switched with a class,
+   so its rule is rewritten in place. */
+const MARGINS = [['wide', '2.5cm'], ['narrow', '1.2cm'], ['none', '0cm']];
 let mgi = 0;
 const pageStyle = document.head.appendChild(document.createElement('style'));
 function applyMargin() {
   pageStyle.textContent = '@page{margin:' + MARGINS[mgi][1] + '}';
+  document.documentElement.style.setProperty('--pmargin', MARGINS[mgi][1]);
   $('#bMargin').textContent = 'Margin: ' + MARGINS[mgi][0];
   document.body.classList.toggle('nomargin', mgi === 2);
 }
