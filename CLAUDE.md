@@ -129,6 +129,34 @@ lookup, both through `jumpToLine()` which the outline drawer uses too.
 never enforces heading structure. The convention it points at is one h1 as
 the title, `##` for sections, no gaps.
 
+## Documents
+
+IndexedDB database `sumi`, store `docs` {id, name, text, created, updated,
+handle?} indexed by `updated`, and store `versions` (see History). `idb` is a
+five-call wrapper over one-transaction requests; `tx()` resolves with the
+request's result when the transaction completes. `doc` is the open record,
+`text` its live content, `handle` its File System Access handle if it was
+saved to disk (handles survive in IndexedDB and need `requestPermission`
+once per session, done in `saveMd`).
+
+Flow: `store()` (debounced 900 ms from `afterChange`, and `flush()` on
+hide/unload) writes the record and posts `{id, updated}` on a
+BroadcastChannel. Before writing it re-reads the record: if another tab
+updated it since this tab last read it, `doc.conflict` is set, autosave
+pauses, and a toast says so; reopening the document clears it. A tab with no
+local edits that hears the broadcast reloads the newer text silently.
+`showDoc()` loads a record and resets undo history; `openDoc`, `createDoc`,
+`deleteDoc` all `flush()` first. Opened or dropped files become documents
+(`openFile`, which reopens an identical one instead of duplicating). The old
+single draft key is migrated into the first document on startup and removed.
+Without IndexedDB, `docsOK` is false and the editor keeps one draft in the
+key/value layer as before.
+
+The Documents drawer (`#docs`, File ▸ Documents, `body.docs`) shares the left
+edge with the outline; opening one closes the other. Delete is two clicks on
+the × within four seconds. Harnesses must `indexedDB.deleteDatabase('sumi')`
+when starting fresh, otherwise the previous harness's documents load.
+
 ## Source mode
 
 `body.source` (Source button, ⌘⇧U) is pure CSS over the same DOM: every `.tok`
@@ -195,6 +223,7 @@ node test/cdp.mjs http://localhost:8765/test/highlight.html
 node test/cdp.mjs http://localhost:8765/test/small.html      # numbering, front matter, list cycling, settings
 node test/cdp.mjs http://localhost:8765/test/toc.html        # [TOC], slugs, internal links, export ids
 node test/cdp.mjs http://localhost:8765/test/source.html     # source mode
+node test/cdp.mjs http://localhost:8765/test/docs.html       # documents: migration, drawer, switching, two tabs
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
@@ -227,7 +256,10 @@ known caret offset survives a render.
 ## Conventions
 
 - No build step, no bundler, no framework. If a change needs one, it is the wrong change.
-- No `localStorage` directly — `store()`/`load()` prefer `window.storage`, fall back to `localStorage`, and swallow failures. Drafts are best-effort.
+- Documents live in IndexedDB (see Documents below). Small state goes through
+  `persist()`/`recall()`/`forget()`, which prefer `window.storage`, fall back
+  to `localStorage`, and swallow failures. Nothing touches `localStorage`
+  directly.
 - KaTeX and Mermaid load lazily from CDN and **must** fail soft: if they do not load, math and diagrams stay as plain source and nothing else breaks. Keep it that way.
 - CSS colours come from custom properties only, so both themes stay in sync.
 - Danish/English: UI is English. Nothing is localised yet.

@@ -16,7 +16,7 @@ const pick=name=>{ $('#bTheme').click(); $('#menu .mi[data-t='+name+']').click()
 const dark=()=>d.dispatchEvent(new w.KeyboardEvent('keydown',{key:'D',metaKey:true,shiftKey:true,bubbles:true,cancelable:true}));
 const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([css],name,{type:'text/css'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(200); };
 (async()=>{
-  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings;
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');   // start from no documents and no settings;
   Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});   // and stop the unloading frame saving its draft back
   f.src='/sumi.html?fresh'; await loadFrame(); bind();
   ok(d.documentElement.dataset.theme==='paper','initial theme paper: '+d.documentElement.dataset.theme);

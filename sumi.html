@@ -164,6 +164,29 @@ button.b:focus-visible, #name:focus-visible{outline:2px solid var(--accent); out
   transform:translateX(-100%); transition:transform .22s ease;
 }
 body.outline #outline{transform:none}
+#docs{
+  position:fixed; top:46px; bottom:0; left:0; width:230px; z-index:15;
+  padding:14px 8px 40px 12px; overflow:auto;
+  font-family:var(--sans); font-size:12.5px; line-height:1.5;
+  border-right:1px solid var(--rule); background:var(--paper);
+  transform:translateX(-100%); transition:transform .22s ease;
+}
+body.docs #docs{transform:none}
+#docs .hd{display:flex; justify-content:space-between; align-items:center; padding:0 6px 8px;
+  color:var(--ink-faint); font-size:11px; letter-spacing:.06em; text-transform:uppercase}
+#docs .hd button{font:inherit; font-size:12.5px; letter-spacing:0; text-transform:none; color:var(--accent);
+  background:none; border:0; cursor:pointer; padding:2px 6px; border-radius:5px}
+#docs .hd button:hover{background:var(--paper-2)}
+#docs .doc{display:flex; align-items:center; gap:6px; padding:5px 6px; border-radius:5px; cursor:pointer; color:var(--ink-soft)}
+#docs .doc:hover{background:var(--paper-2); color:var(--ink)}
+#docs .doc.on{color:var(--ink); background:var(--paper-2)}
+#docs .doc .n{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+#docs .doc .t{color:var(--ink-faint); font-size:11px}
+#docs .doc .x{visibility:hidden; color:var(--ink-faint); background:none; border:0; font:inherit; font-size:14px; line-height:1; cursor:pointer; padding:0 3px; border-radius:4px}
+#docs .doc:hover .x,#docs .doc.ask .x{visibility:visible}
+#docs .doc .x:hover{color:#b4544a; background:var(--paper)}
+#docs .doc.ask .n{color:#b4544a}
+#docs .empty{color:var(--ink-faint); padding:4px 6px}
 #outline div{
   padding:4px 6px; border-radius:5px; cursor:pointer; color:var(--ink-soft);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -193,7 +216,7 @@ body.outline #outline{transform:none}
 
 /* ── writing surface ─────────────────────────────────────────────────── */
 #wrap{height:100%; overflow-y:auto; scroll-behavior:auto}
-body.outline #wrap{padding-left:230px}
+body.outline #wrap,body.docs #wrap{padding-left:230px}
 #editor{
   max-width:var(--measure); margin:0 auto;
   padding:16vh max(4mm, var(--pmargin)) 60vh;
@@ -401,18 +424,18 @@ kbd{
 
 @media (max-width:720px){
   #editor{padding:12vh min(18px, max(4mm, var(--pmargin))) 60vh}
-  body.outline #wrap{padding-left:0}
-  #outline{width:78vw}
+  body.outline #wrap,body.docs #wrap{padding-left:0}
+  #outline,#docs{width:78vw}
   #name{width:8em}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
-  #bar,#outline,#count,#toast,#help,#menu{display:none!important}
+  #bar,#outline,#docs,#count,#toast,#help,#menu{display:none!important}
   .fmcard{display:none}
   html,html[data-theme]{--paper:#fff; --paper-2:#f0f0f0; --ink:#000; --ink-soft:#444; --ink-faint:#777; --rule:#ccc; --code-bg:#f3f3f3; --mark:#efe9a4}
   /* compact, Typora-like page: sans, 10pt, tight leading, half-height blank lines */
   body{background:#fff; color:#000; --body:var(--sans); font-size:10pt; --lh:1.4}
-  #wrap,body.outline #wrap{overflow:visible; padding:0}
+  #wrap,body.outline #wrap,body.docs #wrap{overflow:visible; padding:0}
   #editor{max-width:none; padding:0}
   body.nomargin #editor{padding:0 4mm}
   .tok,.src,.lang{display:none}
@@ -446,6 +469,7 @@ kbd{
 </div>
 
 <nav id="outline" aria-label="Document outline"></nav>
+<nav id="docs" aria-label="Documents"></nav>
 <div id="menu" role="menu"></div>
 
 <div id="wrap"><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" role="textbox" aria-multiline="true"></div></div>
@@ -470,7 +494,8 @@ kbd{
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
     <tr><td>View</td><td>outline, focus, typewriter, source code; line width and typeface</td></tr>
     <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3; a lone # title stays unnumbered) and equation numbers</td></tr>
-    <tr><td>File</td><td>open, save, copy markdown, export HTML, print or PDF</td></tr>
+    <tr><td>File</td><td>new document, the Documents drawer, open, save, copy markdown, export HTML, print or PDF</td></tr>
+    <tr><td>Documents</td><td>every document you write is kept in this browser (IndexedDB); the drawer lists them by last edit — switch, delete, or rename by editing the name at the top left</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
     <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
     <tr><td><kbd>[TOC]</kbd></td><td>table of contents built from the headings; <kbd>[text](#heading)</kbd> links jump to a heading</td></tr>
@@ -1382,7 +1407,8 @@ function toggle(cls) {
   if (PERSISTED.includes(cls)) storeSettings();
   if (cls === 'focus' && !on) for (const el of editor.children) el.classList.remove('near');
   if (cls === 'focus' || cls === 'typewriter') updateActive();
-  if (cls === 'outline') buildOutline();
+  if (cls === 'outline') { if (on) document.body.classList.remove('docs'); buildOutline(); }
+  if (cls === 'docs') { if (on) document.body.classList.remove('outline'); buildDocs(); }
   return on;
 }
 
@@ -1442,6 +1468,9 @@ menuButton('bPage', () => [
   ...NUMS.map(([cls, label]) => check(cls, label)),
 ]);
 menuButton('bFile', () => [
+  { label: 'New document', data: 'data-act="new"', act: () => createDoc('untitled.md', '') },
+  check('docs', 'Documents'),
+  '-',
   { label: 'Open…', hint: '⌘O', data: 'data-act="open"', act: () => $('#picker').click() },
   { label: 'Save', hint: '⌘S', data: 'data-act="save"', act: saveMd },
   '-',
@@ -1566,9 +1595,12 @@ let handle = null;
 async function saveMd() {
   const data = text;
   try {
+    /* a handle restored from the database needs its permission renewed once per session */
+    if (handle && handle.queryPermission && await handle.queryPermission({ mode: 'readwrite' }) !== 'granted'
+        && await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') handle = null;
     if (handle) {
       const w = await handle.createWritable(); await w.write(data); await w.close();
-      toast('Saved to ' + handle.name); return;
+      toast('Saved to ' + handle.name); store(); return;
     }
     if (window.showSaveFilePicker) {
       handle = await showSaveFilePicker({
@@ -1576,29 +1608,27 @@ async function saveMd() {
         types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }]
       });
       const w = await handle.createWritable(); await w.write(data); await w.close();
-      $('#name').value = handle.name; toast('Saved to ' + handle.name); return;
+      $('#name').value = handle.name; toast('Saved to ' + handle.name); store(); return;
     }
   } catch (err) { if (err && err.name === 'AbortError') return; }
   download(new Blob([data], { type: 'text/markdown' }), fileName() + '.md');
   toast('Downloaded ' + fileName() + '.md');
 }
-$('#picker').onchange = e => {
-  const f = e.target.files[0]; if (!f) return;
-  f.text().then(t => {
-    handle = null;
-    $('#name').value = f.name;
-    setText(t.replace(/\r\n?/g, '\n'), 0);
-    editor.focus(); wrap.scrollTop = 0;
-  });
-  e.target.value = '';
-};
+/* An opened or dropped file becomes a document of its own (or reopens the one
+   with the same name and text). */
+async function openFile(f) {
+  const t = (await f.text()).replace(/\r\n?/g, '\n');
+  let same = null;
+  try { same = (await idb.all('docs')).find(d => d.name === f.name && d.text === t); } catch (e) {}
+  if (same) await openDoc(same.id); else await createDoc(f.name, t);
+}
+$('#picker').onchange = e => { const f = e.target.files[0]; if (f) openFile(f); e.target.value = ''; };
 addEventListener('dragover', e => e.preventDefault());
 addEventListener('drop', e => {
   e.preventDefault();
   const f = e.dataTransfer.files[0];
   if (f && /\.css$/i.test(f.name)) { f.text().then(t => { setUserCSS(t); toast('Loaded theme ' + f.name); }); return; }
-  if (f && /\.(md|markdown|mdown|txt)$/i.test(f.name))
-    f.text().then(t => { handle = null; $('#name').value = f.name; setText(t.replace(/\r\n?/g, '\n'), 0); });
+  if (f && /\.(md|markdown|mdown|txt)$/i.test(f.name)) openFile(f);
 });
 
 /* ── export ─────────────────────────────────────────────────────────── */
@@ -1837,15 +1867,21 @@ ${mdToHtml(text, true)}
   toast('Exported ' + title + '.html');
 }
 $('#name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); editor.focus(); } });
+$('#name').addEventListener('input', () => { clearTimeout(chromeTimer); chromeTimer = setTimeout(store, 900); });
 
-/* ── draft persistence ────────────────────────────────────────────────── */
-const KEY = 'sumi:draft', SKEY = 'sumi:settings';
+/* ── documents ────────────────────────────────────────────────────────────
+   Documents live in IndexedDB, store `docs`: {id, name, text, created,
+   updated, handle?}. Settings and the id of the open document stay in the
+   small key/value layer below (window.storage if the host provides one,
+   else localStorage). If IndexedDB is unavailable the editor falls back to
+   the single-draft key it always had, so nothing is lost, just not listed. */
+const KEY = 'sumi:draft', SKEY = 'sumi:settings', CUR = 'sumi:current';
 async function persist(key, value) {
   const payload = JSON.stringify(value);
   try {
     if (window.storage) { await window.storage.set(key, payload); return; }
     localStorage.setItem(key, payload);
-  } catch (e) { /* running somewhere without storage: drafts and settings stay in memory */ }
+  } catch (e) { /* running somewhere without storage: settings stay in memory */ }
 }
 async function recall(key) {
   try {
@@ -1854,13 +1890,153 @@ async function recall(key) {
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
-const store = () => persist(KEY, { name: $('#name').value, text });
-const load = () => recall(KEY);
+async function forget(key) {
+  try { if (window.storage) await window.storage.delete(key); else localStorage.removeItem(key); } catch (e) {}
+}
 const storeSettings = () => persist(SKEY, {
   theme: themeName, css: userCSS, width: wi, font: fi, margin: mgi,
   pages: document.body.classList.contains('pagebreak'),
   ...Object.fromEntries(NUMS.map(([cls]) => [cls, document.body.classList.contains(cls)])),
 });
+
+let dbp = null;
+function db() {
+  if (dbp) return dbp;
+  dbp = new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('no IndexedDB'));
+    const r = indexedDB.open('sumi', 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      d.createObjectStore('docs', { keyPath: 'id' }).createIndex('updated', 'updated');
+      d.createObjectStore('versions', { keyPath: 'id', autoIncrement: true }).createIndex('doc', ['docId', 'at']);
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.onblocked = () => rej(new Error('blocked'));
+  });
+  dbp.catch(() => { dbp = null; });
+  return dbp;
+}
+/* run fn(objectStore) in a transaction; resolves with the request's result once the transaction completes */
+const tx = (store, mode, fn) => db().then(d => new Promise((res, rej) => {
+  const t = d.transaction(store, mode), out = fn(t.objectStore(store));
+  t.oncomplete = () => res(out instanceof IDBRequest ? out.result : out);
+  t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+}));
+const idb = {
+  get: (store, key) => tx(store, 'readonly', s => s.get(key)),
+  all: (store, index, range) => tx(store, 'readonly', s => (index ? s.index(index) : s).getAll(range)),
+  put: (store, val) => tx(store, 'readwrite', s => s.put(val)),
+  delete: (store, key) => tx(store, 'readwrite', s => s.delete(key)),
+  deleteRange: (store, index, range) => tx(store, 'readwrite', s => {
+    const req = s.index(index).openCursor(range);
+    req.onsuccess = () => { const c = req.result; if (c) { c.delete(); c.continue(); } };
+    return null;
+  }),
+};
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+let doc = null, lastStored = '', docsOK = true;
+const bc = 'BroadcastChannel' in window ? new BroadcastChannel('sumi') : null;
+
+/* Autosave. Refuses to overwrite a record another tab has updated since this
+   tab last read it, and pauses until the document is reopened. */
+async function store() {
+  if (!doc) return;
+  doc.name = $('#name').value || 'untitled.md';
+  if (!docsOK) return persist(KEY, { name: doc.name, text });
+  if (doc.conflict) return;
+  try {
+    const cur = await idb.get('docs', doc.id);
+    if (cur && cur.updated > doc.updated) { doc.conflict = true; toast('Changed in another tab. Autosave paused here; reopen it from Documents.'); return; }
+    if (cur && cur.text === text && cur.name === doc.name && !!cur.handle === !!handle) return;
+    doc.updated = Date.now();
+    await idb.put('docs', { id: doc.id, name: doc.name, text, created: doc.created, updated: doc.updated, handle: handle || undefined });
+    lastStored = text;
+    if (bc) bc.postMessage({ id: doc.id, updated: doc.updated });
+    if (document.body.classList.contains('docs')) buildDocs();
+  } catch (e) { docsOK = false; persist(KEY, { name: doc.name, text }); }
+}
+const flush = () => { clearTimeout(chromeTimer); return store(); };
+
+function showDoc(d) {
+  doc = d; handle = d.handle || null; lastStored = d.text;
+  $('#name').value = d.name;
+  hist = []; hi = -1;
+  setText(d.text, 0, 0, false);
+  record(text, { start: 0, end: 0 });
+  persist(CUR, d.id);
+  wrap.scrollTop = 0;
+  editor.focus(); setSel(0); updateActive();
+}
+async function openDoc(id) {
+  await flush();
+  let d = null; try { d = await idb.get('docs', id); } catch (e) {}
+  if (!d) return;
+  showDoc(d);
+  buildDocs();
+}
+async function createDoc(name, t) {
+  await flush();
+  const d = { id: newId(), name, text: t, created: Date.now(), updated: Date.now() };
+  if (docsOK) { try { await idb.put('docs', d); } catch (e) { docsOK = false; } }
+  showDoc(d);
+  buildDocs();
+  return d;
+}
+async function deleteDoc(id) {
+  clearTimeout(chromeTimer);
+  try {
+    await idb.delete('docs', id);
+    await idb.deleteRange('versions', 'doc', IDBKeyRange.bound([id, 0], [id, Infinity]));
+  } catch (e) {}
+  if (doc && doc.id === id) {
+    let rest = []; try { rest = (await idb.all('docs', 'updated')).reverse(); } catch (e) {}
+    if (rest.length) showDoc(rest[0]); else await createDoc('untitled.md', '');
+  }
+  buildDocs();
+}
+if (bc) bc.onmessage = async e => {
+  if (!doc || e.data.id !== doc.id) { if (document.body.classList.contains('docs')) buildDocs(); return; }
+  if (text !== lastStored) { doc.conflict = true; toast('Changed in another tab. Autosave paused here; reopen it from Documents.'); return; }
+  let d = null; try { d = await idb.get('docs', doc.id); } catch (err) {}
+  if (d && d.text !== text) { const sel = selRange(); showDoc(d); if (sel) setSel(sel.start, sel.end); toast('Updated from another tab'); }
+  else if (d) doc.updated = d.updated;
+};
+
+function ago(ts) {
+  const s = (Date.now() - ts) / 1000;
+  if (s < 60) return 'now';
+  if (s < 3600) return Math.round(s / 60) + ' min';
+  if (s < 86400) return Math.round(s / 3600) + ' h';
+  if (s < 86400 * 7) return Math.round(s / 86400) + ' d';
+  return new Date(ts).toLocaleDateString();
+}
+async function buildDocs() {
+  if (!document.body.classList.contains('docs')) return;
+  const box = $('#docs');
+  let list = [];
+  try { list = (await idb.all('docs', 'updated')).reverse(); } catch (e) {}
+  box.innerHTML = '<div class="hd"><span>Documents</span><button type="button" data-act="new">+ New</button></div>';
+  if (!docsOK) box.insertAdjacentHTML('beforeend', '<div class="empty">This browser has no document storage; only the current draft is kept.</div>');
+  for (const d of list) {
+    const row = document.createElement('div');
+    row.className = 'doc' + (doc && d.id === doc.id ? ' on' : '');
+    row.dataset.id = d.id;
+    row.innerHTML = `<span class="n">${esc(d.name)}</span><span class="t">${ago(d.updated)}</span><button class="x" type="button" title="Delete">×</button>`;
+    box.appendChild(row);
+  }
+}
+$('#docs').onclick = e => {
+  if (e.target.closest('[data-act=new]')) { createDoc('untitled.md', ''); return; }
+  const row = e.target.closest('.doc'); if (!row) return;
+  if (e.target.closest('.x')) {
+    if (row.classList.contains('ask')) deleteDoc(row.dataset.id);
+    else { row.classList.add('ask'); row.querySelector('.n').textContent = 'Delete? Click × again'; setTimeout(buildDocs, 4000); }
+    return;
+  }
+  if (!row.classList.contains('on')) openDoc(row.dataset.id);
+};
 
 const WELCOME = `# Sumi
 
@@ -1935,7 +2111,7 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
 `;
 
 (async () => {
-  const [saved, prefs] = await Promise.all([load(), recall(SKEY)]);
+  const prefs = await recall(SKEY);
   if (prefs) {
     if (prefs.css) setUserCSS(prefs.css, false);
     setTheme(prefs.theme, false);
@@ -1945,11 +2121,23 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
     if (prefs.pages) document.body.classList.add('pagebreak');
     for (const [cls] of NUMS) if (prefs[cls]) document.body.classList.add(cls);
   }
-  if (saved && saved.text) { $('#name').value = saved.name || 'untitled.md'; setText(saved.text, 0, 0, false); }
-  else setText(WELCOME, 0, 0, false);
-  record(text, { start: 0, end: 0 });
-  editor.focus(); setSel(0);
-  updateActive();
+  let d = null;
+  try {
+    await db();
+    const legacy = await recall(KEY);
+    if (legacy && legacy.text) {   /* the single draft of earlier versions becomes the first document */
+      if (!(await idb.all('docs')).length) await idb.put('docs', d = { id: newId(), name: legacy.name || 'untitled.md', text: legacy.text, created: Date.now(), updated: Date.now() });
+      await forget(KEY);
+    }
+    if (!d) { const id = await recall(CUR); if (id) d = await idb.get('docs', id); }
+    if (!d) { const all = await idb.all('docs', 'updated'); d = all[all.length - 1] || null; }
+    if (!d) await idb.put('docs', d = { id: newId(), name: 'untitled.md', text: WELCOME, created: Date.now(), updated: Date.now() });
+  } catch (e) {
+    docsOK = false;
+    const legacy = await recall(KEY);
+    d = { id: 'draft', name: (legacy && legacy.name) || 'untitled.md', text: (legacy && legacy.text) || WELCOME, created: 0, updated: 0 };
+  }
+  showDoc(d);
   $('#bar').classList.add('show');
   setTimeout(() => $('#bar').classList.remove('show'), 2200);
 })();
@@ -1980,7 +2168,8 @@ loadScript(CDN + 'mermaid/11.15.0/mermaid.min.js')
   .then(() => { initMermaid(); forceRender(); })
   .catch(() => {});
 
-addEventListener('beforeunload', () => { try { store(); } catch (e) {} });
+addEventListener('beforeunload', () => { try { flush(); } catch (e) {} });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 })();
 </script>
 </body>

@@ -1,0 +1,87 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<iframe id="g" style="width:600px;height:300px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f'), g=document.getElementById('g');
+const loadFrame=(fr=f)=>new Promise(r=>{fr.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const mon=(id,sel)=>{ $('#'+id).click(); const on=$('#menu '+sel).classList.contains('on'); d.body.click(); return on; };
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+const caretEnd=()=>{ const el=$$('#editor .line').slice(-1)[0]; const r=d.createRange(); r.selectNodeContents(el); r.collapse(false); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); };
+const type=async t=>{ caretEnd(); d.execCommand('insertText',false,t); await sleep(1200); };   // past the 900 ms autosave
+const rows=()=>$$('#docs .doc');
+const names=()=>rows().map(r=>r.querySelector('.n').textContent).join('|');
+const row=n=>rows().find(r=>r.querySelector('.n').textContent===n);
+const dbAll=win=>new Promise((res,rej)=>{ const r=win.indexedDB.open('sumi',1); r.onsuccess=()=>{ const t=r.result.transaction('docs','readonly'); const q=t.objectStore('docs').getAll(); q.onsuccess=()=>{ r.result.close(); res(q.result); }; q.onerror=()=>rej(q.error); }; r.onerror=()=>rej(r.error); });
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
+(async()=>{
+  await loadFrame(); bind();
+  w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  w.localStorage.setItem('sumi:draft', JSON.stringify({name:'old.md', text:'# Old draft\n\ntext'}));   // a legacy single draft
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  // migration
+  ok($('#name').value==='old.md'&&$('#editor .line').textContent==='# Old draft','legacy draft migrated into a document: '+$('#name').value);
+  ok(w.localStorage.getItem('sumi:draft')===null,'legacy key removed after migration');
+  let all=await dbAll(w);
+  ok(all.length===1&&all[0].text==='# Old draft\n\ntext','database holds the migrated document');
+  const oldId=all[0].id;
+  // drawer + new document
+  mclick('bFile','[data-n=docs]'); await sleep(200);
+  ok(d.body.classList.contains('docs')&&rows().length===1&&rows()[0].classList.contains('on'),'Documents drawer lists the one document as current');
+  mclick('bFile','[data-act=new]'); await sleep(300);
+  ok($('#name').value==='untitled.md'&&$('#editor').textContent===''&&rows().length===2&&rows()[0].classList.contains('on'),'new document opened, listed first and current: '+names());
+  await type('Hello from doc two');
+  all=await dbAll(w);
+  ok(all.length===2&&all.some(x=>x.text==='Hello from doc two'),'typing autosaves the new document: '+all.map(x=>JSON.stringify(x.text)).join(', '));
+  // switch back and forth
+  row('old.md').click(); await sleep(300);
+  ok($('#name').value==='old.md'&&$('#editor .line').textContent==='# Old draft'&&row('old.md').classList.contains('on'),'switching to old.md loads its text');
+  ok(w.getSelection().rangeCount>0&&$('#editor').contains(w.getSelection().anchorNode),'caret placed in the editor after switch');
+  key('z',{metaKey:true}); await sleep(100);
+  ok($('#editor .line').textContent==='# Old draft','undo history does not cross documents');
+  row('untitled.md').click(); await sleep(300);
+  ok($('#editor').textContent==='Hello from doc two','switching back keeps the typed text');
+  // rename via the name field
+  $('#name').value='two.md'; $('#name').dispatchEvent(new w.Event('input',{bubbles:true})); await sleep(1200);
+  ok(names()==='two.md|old.md','renaming through the name field updates the drawer: '+names());
+  // drop a file -> new document; dropping the same again reopens it
+  await drop('# Dropped\n\nbody','dropped.md');
+  ok($('#name').value==='dropped.md'&&rows().length===3&&rows()[0].querySelector('.n').textContent==='dropped.md','dropped file becomes a document: '+names());
+  row('two.md').click(); await sleep(300);
+  await drop('# Dropped\n\nbody','dropped.md');
+  ok(rows().length===3&&$('#name').value==='dropped.md','dropping the same file again reopens it instead of duplicating');
+  // delete: two-step, non-current then current
+  const twoRow=rows().find(r=>r.querySelector('.n').textContent==='two.md');
+  twoRow.querySelector('.x').click(); await sleep(50);
+  ok(twoRow.classList.contains('ask')&&rows().length===3,'first × asks, nothing deleted yet');
+  twoRow.querySelector('.x').click(); await sleep(400);
+  ok(rows().length===2&&names()==='dropped.md|old.md','second × deletes: '+names());
+  const cur=rows().find(r=>r.classList.contains('on'));
+  cur.querySelector('.x').click(); cur.querySelector('.x').click(); await sleep(400);
+  ok(rows().length===1&&$('#name').value==='old.md'&&rows()[0].classList.contains('on'),'deleting the open document switches to the remaining one: '+names());
+  // reload restores the open document
+  f.src='/sumi.html?again'; await loadFrame(); bind();
+  ok($('#name').value==='old.md'&&$('#editor .line').textContent==='# Old draft','open document restored after reload');
+  ok(!d.body.classList.contains('docs'),'drawer state is per session');
+  // two tabs: the other tab edits the same document
+  g.src='/sumi.html?other'; await loadFrame(g);
+  const gw=g.contentWindow, gd=g.contentDocument;
+  ok(gd.querySelector('#name').value==='old.md','second tab opens the same document');
+  const gel=gd.querySelectorAll('#editor .line'); const gr=gd.createRange(); gr.selectNodeContents(gel[gel.length-1]); gr.collapse(false); const gs=gw.getSelection(); gs.removeAllRanges(); gs.addRange(gr); gd.querySelector('#editor').focus();
+  gd.execCommand('insertText',false,' edited elsewhere'); await sleep(1400);
+  ok($('#editor').textContent.includes('edited elsewhere'),'idle tab picks up the other tab\'s save: '+JSON.stringify($$('#editor .line').slice(-1)[0].textContent));
+  // now both edit: this tab must not clobber
+  caretEnd(); d.execCommand('insertText',false,' local change');
+  gd.querySelector('#editor').focus(); gd.execCommand('insertText',false,' remote change'); await sleep(1800);
+  all=await dbAll(w); const rec=all.find(x=>x.id===oldId);
+  ok(/remote change/.test(rec.text)&&!/local change/.test(rec.text)||/local change/.test(rec.text)&&!/remote change/.test(rec.text),'one writer wins, the other is paused rather than merged: '+JSON.stringify(rec.text.slice(-40)));
+  ok(/Changed in another tab/.test($('#toast').textContent)||/Changed in another tab/.test(gd.querySelector('#toast').textContent),'the paused tab is told: '+($('#toast').textContent||gd.querySelector('#toast').textContent));
+  w.localStorage.clear(); gw.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>
