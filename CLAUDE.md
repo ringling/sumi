@@ -65,7 +65,8 @@ Add a new block type by giving it a `blk`, a `kind`, and a branch in
 
 | Region | What lives there |
 |---|---|
-| `<style>` tokens | CSS custom properties, both themes |
+| `<style>` tokens | CSS custom properties; the default (Paper) values |
+| `<style>` themes | one `html[data-theme="…"]` block per built-in theme |
 | `<style>` writing surface | `.line`, `.tok` folding, block/preview/fold rules |
 | `@media print` | page breaks, margins, hiding block source |
 | GFM inline | `inline(s, clean)` — one tokenizer, two output modes |
@@ -85,9 +86,37 @@ drops the syntax and emits real `<img>`/`<a>`/KaTeX. Block-level rendering is
 you add syntax, both usually need touching, and they can drift. That drift is the
 most likely source of "looks right in the editor, wrong in the export".
 
+## Themes
+
+A theme is a block of token overrides on `html[data-theme="name"]`, registered
+in `THEMES` in the script (label, dark flag, and which theme ⌘⇧D flips to).
+Themes may set typography (`--body`, `--size`, `--lh`, `--measure`) as well as
+colours. The Font and Width buttons override those with inline properties on
+`<html>`; `setTheme()` clears the overrides and `syncTypography()` re-reads the
+buttons' state from computed values, so a theme's own font shows as "Font"
+and its own measure as "Width: theme" when they are not in the button lists.
+
+User themes are plain `.css` files (see `themes/sample.css`) loaded from the
+Theme menu or dropped on the window. They go into a `<style>` appended last,
+so they beat everything. Theme name and custom CSS are the only persisted
+settings (`sumi:settings`). Export reads the active tokens with
+`getComputedStyle` and inlines them, so the exported page follows the theme.
+Both print blocks reset the paper/ink tokens to black-on-white.
+
 ## Testing
 
-No test suite. The loop that has been working:
+No test suite for the editor core. `test/cdp.mjs` drives headless Chrome
+over the DevTools protocol against a harness page served from the project:
+
+```bash
+python3 -m http.server 8765 &
+node test/cdp.mjs http://localhost:8765/test/themes.html
+```
+
+The harness loads `sumi.html` in an iframe and reports PASS/FAIL lines. The
+script is an IIFE, so tests go through the UI (clicks, key events, drop
+events), not through internal functions. The loop that has been working for
+the pure functions:
 
 ```bash
 # 1. parse check
@@ -120,8 +149,8 @@ known caret offset survives a render.
 - Table editing is source editing. No cell navigation, no auto-alignment of the
   source pipes. A "tidy table" command that pads the source columns would be a
   natural next feature.
-- Settings (theme, width, typeface, margin, page breaks) are not persisted —
-  only the draft is.
+- Width, typeface, margin and page breaks are not persisted — only the draft,
+  the theme and any custom CSS are.
 - Mermaid redraws on a 450 ms pause. Large diagrams will feel it.
 - The `~~~` fence and setext heading paths are the least exercised code.
 
@@ -130,5 +159,5 @@ known caret offset survives a render.
 - Tidy/align table source (`⌘⇧|`)
 - Command palette
 - Multiple documents / tabs
-- Persist settings alongside the draft
+- Persist the remaining settings alongside the theme
 - Vendored offline build (~1.5 MB with KaTeX + Mermaid inlined)

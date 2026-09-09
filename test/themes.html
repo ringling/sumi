@@ -1,0 +1,76 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:800px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,400); });
+let w,d,$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s);};
+const cv=n=>w.getComputedStyle(d.documentElement).getPropertyValue(n).trim();
+const pick=name=>{ $('#bTheme').click(); $('#themes .mi[data-t='+name+']').click(); };
+const dark=()=>d.dispatchEvent(new w.KeyboardEvent('keydown',{key:'D',metaKey:true,shiftKey:true,bubbles:true,cancelable:true}));
+const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([css],name,{type:'text/css'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(200); };
+(async()=>{
+  await loadFrame(); bind();
+  ok(d.documentElement.dataset.theme==='paper','initial theme paper: '+d.documentElement.dataset.theme);
+  ok($('#bTheme').textContent==='Theme: Paper','button label '+$('#bTheme').textContent);
+  ok(d.querySelectorAll('#themes .mi[data-t]').length===7,'menu has 7 themes');
+  ok(!!$('#themes .mi[data-act=css]'),'menu has load css');
+  ok(cv('--measure')==='56em' && $('#bWide').textContent==='Width: regular','default measure 56em / regular: '+cv('--measure')+' '+$('#bWide').textContent);
+  const line=$('#editor .line').getBoundingClientRect();
+  ok(line.width>800 && line.width<900,'paper text column ~875px wide: '+Math.round(line.width));
+  $('#bTheme').click();
+  ok($('#themes').classList.contains('show')&&$('#bTheme').getAttribute('aria-expanded')==='true','menu opens');
+  d.body.click();
+  ok(!$('#themes').classList.contains('show')&&$('#bTheme').getAttribute('aria-expanded')==='false','menu closes on outside click');
+  pick('night');
+  ok(d.documentElement.dataset.theme==='night'&&!$('#themes').classList.contains('show'),'menu item selects night and closes');
+  ok(cv('--paper')==='#363b40','night paper '+cv('--paper'));
+  ok(/Open Sans/.test(w.getComputedStyle(d.body).fontFamily),'night body font sans');
+  ok($('#bWide').textContent==='Width: theme','night width label '+$('#bWide').textContent);
+  ok($('#bFont').textContent==='Sans','night font label '+$('#bFont').textContent);
+  ok(w.getComputedStyle(d.documentElement).colorScheme==='dark','color-scheme dark');
+  await sleep(350); const nl=$('#editor .line').getBoundingClientRect();
+  ok(nl.width>900 && nl.width<1000,'night text column ~963px: '+Math.round(nl.width));
+  ok(w.getComputedStyle($('#editor .line.h1')).color==='rgb(244, 244, 244)','night h1 near white: '+w.getComputedStyle($('#editor .line.h1')).color);
+  dark();
+  ok(d.documentElement.dataset.theme==='github','cmd-shift-D from night -> github: '+d.documentElement.dataset.theme);
+  $('#bWide').click();
+  ok($('#bWide').textContent==='Width: narrow' && cv('--measure')==='44em','width click after theme -> narrow: '+$('#bWide').textContent+' '+cv('--measure'));
+  $('#bFont').click();
+  ok($('#bFont').textContent==='Mono','font click after sans theme -> Mono: '+$('#bFont').textContent);
+  pick('paper');
+  ok($('#bWide').textContent==='Width: regular' && $('#bFont').textContent==='Serif' && cv('--measure')==='56em','paper resets overrides: '+$('#bWide').textContent+' '+$('#bFont').textContent+' '+cv('--measure'));
+  await dropCss(':root,html[data-theme]{--accent:#ff0000}');
+  ok(cv('--accent')==='#ff0000','dropped css overrides accent: '+cv('--accent'));
+  ok(!!$('#themes .mi[data-act=clear]'),'menu shows remove custom css');
+  pick('sepia');
+  ok(cv('--accent')==='#ff0000','custom css survives theme change');
+  const st=JSON.parse(w.localStorage.getItem('sumi:settings')||'null');
+  ok(st&&st.theme==='sepia'&&/ff0000/.test(st.css),'settings persisted: '+JSON.stringify(st));
+  ok($('#editor').textContent.startsWith('# Sumi'),'drop of .css did not replace the document');
+  pick('whitey');
+  // export: capture blob, neuter anchor click
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  $('#bHtml').click(); await sleep(100); const html=await blob.text();
+  ok(/:root\{--paper:#ffffff;--paper-2:#f2f2f2;/.test(html),'export carries whitey tokens');
+  ok(/--accent:#ff0000/.test(html),'export carries custom accent');
+  ok(/--body:'Helvetica Neue'/.test(html),'export body font: '+(html.match(/--body:[^;]*/)||[''])[0].slice(0,40));
+  ok(/--measure:60em/.test(html),'export measure 60em');
+  ok(/@media print\{\n :root\{--paper:#fff/.test(html),'export print neutralises tokens');
+  let found=false; for(const sh of d.styleSheets){ try{ for(const r of sh.cssRules){ if(r.media&&r.media.mediaText==='print'){ for(const rr of r.cssRules){ if(rr.selectorText==='html, html[data-theme]') found=true; } } } }catch(e){} }
+  ok(found,'editor print block neutralises theme tokens');
+  f.src='/sumi.html?2'; await loadFrame(); await sleep(400); bind();
+  ok(d.documentElement.dataset.theme==='whitey','theme restored after reload: '+d.documentElement.dataset.theme);
+  ok(cv('--accent')==='#ff0000','custom css restored after reload');
+  ok($('#bTheme').textContent==='Theme: Whitey','label restored');
+  ok(!!$('#themes .mi[data-act=clear]'),'remove custom css offered after reload');
+  $('#bTheme').click(); $('#themes .mi[data-act=clear]').click(); await sleep(50);
+  ok(cv('--accent')!=='#ff0000' && !$('#themes .mi[data-act=clear]'),'remove custom css works: '+cv('--accent'));
+  dark(); ok(d.documentElement.dataset.theme==='night','whitey -> night');
+  d.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+  w.localStorage.removeItem('sumi:settings'); w.localStorage.removeItem('sumi:draft');
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

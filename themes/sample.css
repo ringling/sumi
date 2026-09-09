@@ -1,0 +1,34 @@
+/* Sumi custom theme — load it from the Theme menu or drop it on the window.
+   It is appended after the built-in styles, so anything here wins.
+   Set only what you want to change; everything else stays as the active
+   built-in theme. Select on `:root, html[data-theme]` so the values beat
+   the built-in theme blocks. */
+
+:root, html[data-theme] {
+  /* colours */
+  --paper:      #fbf7f0;   /* page background */
+  --paper-2:    #f1ebe0;   /* table heads, hover, kbd */
+  --ink:        #2a2622;   /* body text */
+  --ink-soft:   #6a625a;   /* quotes, h4–h6, toolbar */
+  --ink-faint:  #a19a90;   /* setext lines, reference definitions */
+  --rule:       #ddd3c4;   /* borders, hr, table grid */
+  --accent:     #b3552d;   /* links, bullets, caret, revealed syntax */
+  --code-bg:    #f1ebe0;
+  --mark:       #f6e39c;   /* ==highlight== */
+  --sel:        rgba(179, 85, 45, .2);
+  --scheme:     light;     /* light | dark — scrollbars and form controls */
+
+  /* type */
+  --serif: 'Charter', 'Iowan Old Style', Georgia, serif;
+  --sans:  'Avenir Next', 'Helvetica Neue', sans-serif;
+  --mono:  'JetBrains Mono', Menlo, monospace;
+  --body:  var(--serif);   /* the Font button cycles --serif / --sans / --mono */
+  --size:  18px;
+  --lh:    1.7;
+  --measure: 52em;         /* page measure on screen, side margins included */
+}
+
+/* Any editor rule can be restyled too. Lines are <div class="line"> with a
+   type class: h1…h6, quote, ul, ol, task, fence, code, hr, alert … */
+.line.h1 { letter-spacing: -.02em; }
+.quote   { font-style: normal; }
