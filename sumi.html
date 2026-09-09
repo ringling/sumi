@@ -276,7 +276,7 @@ kbd{
   <button class="b" id="bFocus" aria-pressed="false" title="Focus mode — Cmd Shift F">Focus</button>
   <button class="b" id="bType" aria-pressed="false" title="Typewriter — Cmd Shift T">Typewriter</button>
   <span class="dot"></span>
-  <button class="b" id="bWide" title="Line width">Width</button>
+  <button class="b" id="bWide" title="Line width on screen — narrow, regular, wide, max">Width: regular</button>
   <button class="b" id="bFont" title="Typeface">Serif</button>
   <button class="b" id="bTheme" title="Theme — Cmd Shift D">Dark</button>
   <span class="dot"></span>
@@ -309,6 +309,7 @@ kbd{
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
     <tr><td>Pages</td><td>break to a new page at each # and ## when printing</td></tr>
+    <tr><td>Width</td><td>line width on screen — narrow, regular, wide, max</td></tr>
     <tr><td>Margin</td><td>page margins on screen, print and PDF — wide, narrow, none</td></tr>
     <tr><td><kbd>$x$</kbd> <kbd>$$…$$</kbd></td><td>inline and block LaTeX (KaTeX)</td></tr>
     <tr><td><kbd>```mermaid</kbd></td><td>diagram block, drawn below the source</td></tr>
@@ -1053,12 +1054,16 @@ function applyMargin() {
 $('#bMargin').onclick = () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); };
 applyMargin();
 
-const widths = ['30em', '34em', '40em', '48em'];
+/* Width is the page measure on screen: the text column plus the side margins,
+   so Width and Margin both change the column. Print ignores it (max-width:none). */
+const WIDTHS = [['narrow', '30em'], ['regular', '34em'], ['wide', '40em'], ['max', '48em']];
 let wi = 1;
-$('#bWide').onclick = () => {
-  wi = (wi + 1) % widths.length;
-  document.documentElement.style.setProperty('--measure', widths[wi]);
-};
+function applyWidth() {
+  document.documentElement.style.setProperty('--measure', WIDTHS[wi][1]);
+  $('#bWide').textContent = 'Width: ' + WIDTHS[wi][0];
+}
+$('#bWide').onclick = () => { wi = (wi + 1) % WIDTHS.length; applyWidth(); };
+applyWidth();
 const fonts = [['Serif', 'var(--serif)'], ['Sans', 'var(--sans)'], ['Mono', 'var(--mono)']];
 let fi = 0;
 $('#bFont').onclick = () => {
