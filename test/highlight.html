@@ -13,7 +13,8 @@ const srcLines=md.split('\n');
 const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(300); };
 const pick=name=>{ $('#bTheme').click(); $('#menu .mi[data-t='+name+']').click(); };
 (async()=>{
-  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings
+  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings;
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});   // and stop the unloading frame saving its draft back
   f.src='/sumi.html?fresh'; await loadFrame(); bind();
   await drop(md,'t.md');
   let tries=0; while(!$('.line.code .hljs-keyword') && tries++<40) await sleep(250);

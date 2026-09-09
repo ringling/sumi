@@ -6,12 +6,12 @@ const f=document.getElementById('f');
 const T='\x60\x60\x60';
 const md=['---','title: Sumi themes','author: T','---','# Sumi themes','','[TOC]','','## Code','','A markdown editor that shows you the finished page while you write it. Put your caret anywhere in this **bold** sentence and the asterisks come back. Same for *emphasis*, `inline code` and [links](https://example.com).','','## What\'s here','','- GitHub Flavored Markdown: tables, task lists, footnotes, alerts','- Focus mode, typewriter scrolling, an outline drawer','- Syntax highlighted code fences','',T+'js','// render one line, folding the syntax away unless the caret is on it','function render(line, active) {','  const html = active ? line : fold(line);   /* class toggle,','                                                 not a re-render */','  return `<div class="line">${html}</div>`;','}',T,'',T+'python','def render(line, active):','    """Return the line, folded unless active."""',"    return line if active else fold(line)",T,'','> A quote keeps its rule in the margin.','','## Maths','','$$','e^{i\\pi} + 1 = 0','$$','','Footnote[^n].','','[^n]: A note.',''].join('\n');
 let first=true;
-f.onload=async()=>{ if(first){ first=false; f.contentWindow.localStorage.clear(); f.src='/sumi.html?fresh'; return; }
+f.onload=async()=>{ if(first){ first=false; f.contentWindow.localStorage.clear(); Object.defineProperty(f.contentWindow,'localStorage',{get(){throw new Error('blocked');}}); f.src='/sumi.html?fresh'; return; }
   await sleep(400); const w=f.contentWindow, d=f.contentDocument;
   const dt=new w.DataTransfer(); dt.items.add(new w.File([md],'t.md',{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true}));
   await sleep(300); const [theme,...flags]=(location.hash.slice(1)||'night').split(',');
   d.querySelector('#bTheme').click(); d.querySelector('#menu .mi[data-t='+theme+']').click();
-  for(const fl of flags){ d.querySelector('#bNums').click(); d.querySelector('#menu .mi[data-n='+fl+']').click(); }
+  for(const fl of flags){ if(fl==='source'){ d.querySelector('#bSource').click(); continue; } d.querySelector('#bNums').click(); d.querySelector('#menu .mi[data-n='+fl+']').click(); }
   if(flags.length){ const r=d.createRange(); r.setStart(d.querySelector('#editor .line'),0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); }
   if(location.search==='?code'){ d.querySelector('#wrap').scrollTop=d.querySelector('.line.fence').offsetTop-60; }
   let t=0; while(!d.querySelector('.hljs-keyword')&&t++<40) await sleep(250);

@@ -16,7 +16,8 @@ const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.create
 const nums=name=>{ $('#bNums').click(); $('#menu .mi[data-n='+name+']').click(); };
 const lineText=i=>$$('#editor .line')[i].textContent;
 (async()=>{
-  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings
+  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings;
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});   // and stop the unloading frame saving its draft back
   f.src='/sumi.html?fresh'; await loadFrame(); bind();
   await drop(md,'t.md'); await sleep(200);
   caretIn(8,0); await sleep(100);

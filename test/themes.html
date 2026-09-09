@@ -12,7 +12,8 @@ const pick=name=>{ $('#bTheme').click(); $('#menu .mi[data-t='+name+']').click()
 const dark=()=>d.dispatchEvent(new w.KeyboardEvent('keydown',{key:'D',metaKey:true,shiftKey:true,bubbles:true,cancelable:true}));
 const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([css],name,{type:'text/css'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(200); };
 (async()=>{
-  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings
+  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings;
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});   // and stop the unloading frame saving its draft back
   f.src='/sumi.html?fresh'; await loadFrame(); bind();
   ok(d.documentElement.dataset.theme==='paper','initial theme paper: '+d.documentElement.dataset.theme);
   ok($('#bTheme').textContent==='Theme: Paper','button label '+$('#bTheme').textContent);
@@ -45,7 +46,7 @@ const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.a
   ok($('#bFont').textContent==='Mono','font click after sans theme -> Mono: '+$('#bFont').textContent);
   pick('paper');
   ok($('#bWide').textContent==='Width: regular' && $('#bFont').textContent==='Serif' && cv('--measure')==='56em','paper resets overrides: '+$('#bWide').textContent+' '+$('#bFont').textContent+' '+cv('--measure'));
-  const before=$('#editor').textContent;
+  const before=d.querySelectorAll('#editor .line').length+'/'+$('#name').value;
   await dropCss(':root,html[data-theme]{--accent:#ff0000}');
   ok(cv('--accent')==='#ff0000','dropped css overrides accent: '+cv('--accent'));
   $('#bTheme').click(); ok(!!$('#menu .mi[data-act=clear]'),'menu shows remove custom css'); d.body.click();
@@ -53,7 +54,7 @@ const dropCss=(css,name='mine.css')=>{ const dt=new w.DataTransfer(); dt.items.a
   ok(cv('--accent')==='#ff0000','custom css survives theme change');
   const st=JSON.parse(w.localStorage.getItem('sumi:settings')||'null');
   ok(st&&st.theme==='sepia'&&/ff0000/.test(st.css),'settings persisted: '+JSON.stringify(st));
-  ok($('#editor').textContent===before,'drop of .css did not replace the document');
+  ok(d.querySelectorAll('#editor .line').length+'/'+$('#name').value===before,'drop of .css did not replace the document');
   pick('whitey');
   // export: capture blob, neuter anchor click
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};

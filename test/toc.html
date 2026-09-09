@@ -13,7 +13,8 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
 const caretLine=()=>{ const s=w.getSelection(); if(!s.anchorNode) return -1; const el=(s.anchorNode.nodeType===1?s.anchorNode:s.anchorNode.parentElement).closest('.line'); return el?$$('#editor .line').indexOf(el):-1; };
 const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.createRange(); const tn=[...el.childNodes].find(n=>n.nodeType===3)||el; r.setStart(tn, tn.nodeType===3?Math.min(off,tn.length):0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
 (async()=>{
-  await loadFrame(); bind(); w.localStorage.clear();
+  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings;
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});   // and stop the unloading frame saving its draft back
   f.src='/sumi.html?fresh'; await loadFrame(); bind();
   await drop(md,'t.md'); caretIn(4,0); await sleep(150);
   const L=$$('#editor .line');

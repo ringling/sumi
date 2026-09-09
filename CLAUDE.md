@@ -116,6 +116,15 @@ the editor each entry carries `data-line`, and a click on any `a[href^="#"]`
 inside the editor is intercepted: TOC entries jump by line, text links by slug
 lookup, both through `jumpToLine()` which the outline drawer uses too.
 
+## Source mode
+
+`body.source` (Source button, ⌘⇧U) is pure CSS over the same DOM: every `.tok`
+shown, every `.fold` unfolded, previews and other `data-x` output hidden,
+monospace, headings at body size, no bullets or rules. Nothing re-renders, so
+the caret stays where it was. The rules sit in `@media screen` so print keeps
+the rendered page. ⌘⇧R (`html.reveal`) is the lighter mode: rendered, with
+the syntax visible.
+
 ## Numbering and other class toggles
 
 Code line numbers, heading numbers and equation numbers are body classes
@@ -164,14 +173,17 @@ node test/cdp.mjs http://localhost:8765/test/themes.html
 node test/cdp.mjs http://localhost:8765/test/highlight.html
 node test/cdp.mjs http://localhost:8765/test/small.html      # numbering, front matter, list cycling, settings
 node test/cdp.mjs http://localhost:8765/test/toc.html        # [TOC], slugs, internal links, export ids
-node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos' shot.png   # screenshot: theme, toggles
+node test/cdp.mjs http://localhost:8765/test/source.html     # source mode
+node test/probe.mjs "<setup js>" print "<eval js>"           # one-off: load, run setup, emulate media, evaluate
+node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/pdf.mjs http://localhost:8765/sumi.html out.pdf            # print a sample doc, reports page count
 ```
 
 Each harness loads `sumi.html` in an iframe and reports PASS/FAIL lines. The
 script is an IIFE, so tests go through the UI (clicks, key events, drop
 events, `execCommand('insertText')` for typing), not through internal
-functions. Needs Chrome at the default macOS path and network for the CDN
+functions. Each harness starts by clearing storage and blocking the unloading
+frame's draft save, otherwise the previous harness's document leaks in. Needs Chrome at the default macOS path and network for the CDN
 libraries. The loop that has been working for
 the pure functions:
 

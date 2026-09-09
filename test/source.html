@@ -1,0 +1,41 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:800px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,400); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.createRange(); const tn=[...el.childNodes].find(n=>n.nodeType===3)||el; r.setStart(tn, tn.nodeType===3?Math.min(off,tn.length):0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
+const caretPos=()=>{ const s=w.getSelection(); const el=(s.anchorNode.nodeType===1?s.anchorNode:s.anchorNode.parentElement).closest('.line'); const r=d.createRange(); r.selectNodeContents(el); r.setEnd(s.anchorNode,s.anchorOffset); return [$$('#editor .line').indexOf(el), r.toString().length]; };
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear();            // start from no draft and no settings;
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});   // and stop the unloading frame saving its draft back
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  const lines=$$('#editor .line');
+  const h1=lines[0], bold=lines.find(l=>/\*\*bold\*\*/.test(l.textContent)), table=lines.find(l=>l.classList.contains('trow'));
+  caretIn(2,5); await sleep(80); const before=caretPos();
+  const tokBefore=w.getComputedStyle(bold.querySelector('.tok')).fontSize;
+  ok(tokBefore==='0px','tokens hidden on inactive line before: '+tokBefore);
+  ok(table.classList.contains('fold')&&w.getComputedStyle(table.querySelector('.src')).display==='none','table source folded before');
+  $('#bSource').click(); await sleep(100);
+  ok(d.body.classList.contains('source')&&$('#bSource').getAttribute('aria-pressed')==='true','Source button toggles body.source');
+  ok(w.getComputedStyle(bold.querySelector('.tok')).fontSize!=='0px','tokens revealed on every line');
+  ok(w.getComputedStyle(table.querySelector('.src')).display!=='none','table source visible');
+  const prev=$('#editor .prev'); ok(w.getComputedStyle(prev).display==='none','previews hidden');
+  ok(/Menlo|Mono|monospace/i.test(w.getComputedStyle($('#editor')).fontFamily),'monospace: '+w.getComputedStyle($('#editor')).fontFamily.slice(0,40));
+  ok(w.getComputedStyle(h1).fontSize===w.getComputedStyle(bold).fontSize,'headings at body size: '+w.getComputedStyle(h1).fontSize);
+  ok(w.getComputedStyle(lines.find(l=>l.classList.contains('ul')),'::before').content==='none','no list bullets');
+  ok(JSON.stringify(caretPos())===JSON.stringify(before),'caret unchanged: '+JSON.stringify(caretPos()));
+  ok($('#editor').textContent.length>100 && lines.length===$$('#editor .line').length,'no re-render: same line elements');
+  key('U',{metaKey:true,shiftKey:true}); await sleep(350);
+  ok(!d.body.classList.contains('source')&&$('#bSource').getAttribute('aria-pressed')==='false','cmd-shift-U toggles off');
+  ok(w.getComputedStyle(bold.querySelector('.tok')).fontSize==='0px'&&w.getComputedStyle(table.querySelector('.src')).display==='none','rendered view restored');
+  key('U',{metaKey:true,shiftKey:true}); await sleep(100);
+  ok(d.body.classList.contains('source'),'cmd-shift-U toggles on again');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

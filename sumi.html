@@ -296,6 +296,30 @@ mark{background:var(--mark); color:inherit; padding:.05em .15em; border-radius:3
 .line.fold{min-height:0; background:none; padding:0; margin:0}
 .line.fold .src{display:none}
 
+/* ── source mode: the raw markdown, monospace, nothing folded or rendered.
+   Pure CSS over the same DOM, so the caret does not move. Screen only; print
+   keeps the rendered page. ── */
+@media screen{
+  body.source #editor{font-family:var(--mono); font-size:.9em; line-height:1.6}
+  body.source .tok{font-size:inherit; opacity:.55}
+  body.source .line{padding-left:0}
+  body.source .line.fold{min-height:calc(1em * var(--lh))}
+  body.source .line.fold .src{display:inline}
+  body.source .prev,body.source .kx,body.source .fn,body.source .alabel,body.source .rule,
+  body.source .mdimg,body.source .eqno{display:none!important}
+  body.source .h{font-family:inherit; font-size:inherit; margin:0; letter-spacing:0; line-height:inherit; color:inherit}
+  body.source .h::before,body.source .ul::before,body.source .task::before,body.source .line.code::before{content:none}
+  body.source .quote{border:0; padding-left:0; font-style:normal; color:inherit}
+  body.source .code,body.source .fence,body.source .mathblk,body.source .fm,body.source .trow{
+    background:none; padding:0; margin:0; font-size:inherit; line-height:inherit; min-height:auto; border-radius:0}
+  body.source .line.code{padding-left:0}
+  body.source .task.done{color:inherit; text-decoration:none}
+  body.source .onum,body.source .setext,body.source .pipe,body.source .lang,body.source .refdef,body.source .rawhtml{color:inherit; opacity:1; font-size:inherit}
+  body.source code{background:none; padding:0; font-size:inherit}
+  body.source mark{background:none; padding:0}
+  body.source a{border:0}
+}
+
 /* ── numbering (all class toggles on body; counters and ::before add no DOM text) ── */
 body.linenos .fence.open{counter-reset:code}
 body.linenos .line.code:not(.fold){padding-left:3.4em}
@@ -404,6 +428,7 @@ kbd{
   <button class="b" id="bOutline" aria-pressed="false" title="Outline — Cmd \">Outline</button>
   <button class="b" id="bFocus" aria-pressed="false" title="Focus mode — Cmd Shift F">Focus</button>
   <button class="b" id="bType" aria-pressed="false" title="Typewriter — Cmd Shift T">Typewriter</button>
+  <button class="b" id="bSource" aria-pressed="false" title="Source code mode — Cmd Shift U">Source</button>
   <span class="dot"></span>
   <button class="b" id="bWide" title="Line width on screen — narrow, regular, wide, max">Width: regular</button>
   <button class="b" id="bFont" title="Typeface">Serif</button>
@@ -436,7 +461,8 @@ kbd{
     <tr><td><kbd>Tab</kbd> <kbd>⇧Tab</kbd></td><td>indent, outdent list item</td></tr>
     <tr><td><kbd>⌘\</kbd></td><td>outline</td></tr>
     <tr><td><kbd>⌘⇧F</kbd> <kbd>⌘⇧T</kbd></td><td>focus mode, typewriter mode</td></tr>
-    <tr><td><kbd>⌘⇧R</kbd></td><td>reveal all markdown syntax</td></tr>
+    <tr><td><kbd>⌘⇧R</kbd></td><td>reveal all markdown syntax, still rendered</td></tr>
+    <tr><td><kbd>⌘⇧U</kbd></td><td>source code mode — raw markdown, monospace, nothing folded</td></tr>
     <tr><td><kbd>⌘S</kbd> <kbd>⌘O</kbd></td><td>save, open</td></tr>
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
@@ -1316,6 +1342,7 @@ document.addEventListener('keydown', e => {
   if (k === 't' && e.shiftKey) { e.preventDefault(); toggle('typewriter', $('#bType')); updateActive(); return; }
   if (k === 'd' && e.shiftKey) { e.preventDefault(); toggleDark(); return; }
   if (k === 'r' && e.shiftKey) { e.preventDefault(); document.documentElement.classList.toggle('reveal'); return; }
+  if (k === 'u' && e.shiftKey) { e.preventDefault(); toggle('source', $('#bSource')); return; }
   if (document.activeElement !== editor) return;
   if (k === 'b') { e.preventDefault(); wrapSel('**'); return; }
   if (k === 'i') { e.preventDefault(); wrapSel('*'); return; }
@@ -1380,6 +1407,7 @@ $('#bNums').onclick = e => {
 $('#bOutline').onclick = () => { toggle('outline', $('#bOutline')); buildOutline(); };
 $('#bFocus').onclick = () => { toggle('focus', $('#bFocus')); updateActive(); };
 $('#bType').onclick = () => { toggle('typewriter', $('#bType')); updateActive(); };
+$('#bSource').onclick = () => toggle('source', $('#bSource'));
 $('#bPages').onclick = () => toggle('pagebreak', $('#bPages'));
 
 /* The margin is shown on screen as the editor's side padding (via --pmargin) and
