@@ -375,7 +375,7 @@ kbd{
   html,html[data-theme]{--paper:#fff; --paper-2:#f0f0f0; --ink:#000; --ink-soft:#444; --ink-faint:#777; --rule:#ccc; --code-bg:#f3f3f3; --mark:#efe9a4}
   /* compact, Typora-like page: sans, 10pt, tight leading, half-height blank lines */
   body{background:#fff; color:#000; --body:var(--sans); font-size:10pt; --lh:1.4}
-  #wrap{overflow:visible; padding:0}
+  #wrap,body.outline #wrap{overflow:visible; padding:0}
   #editor{max-width:none; padding:0}
   body.nomargin #editor{padding:0 4mm}
   .tok,.src,.lang{display:none}
