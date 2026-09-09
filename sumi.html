@@ -332,6 +332,13 @@ body.eqnos .eqno{display:block}
 }
 .fmcard b{font-weight:500; color:var(--ink-faint)}
 
+/* ── table of contents: a [TOC] line folds to a list of the document's headings ── */
+ul.toc{list-style:none; padding:0; margin:.3em 0 1em; font-family:var(--sans); font-size:.9em; line-height:1.75}
+ul.toc li{padding-left:calc((var(--d) - 1) * 1.2em)}
+ul.toc a{color:var(--ink); text-decoration:none; border:0; cursor:pointer}
+ul.toc a:hover{color:var(--accent)}
+ul.toc .empty{color:var(--ink-faint)}
+
 /* ── help ────────────────────────────────────────────────────────────── */
 #help{
   position:fixed; inset:0; z-index:40; display:none;
@@ -435,6 +442,7 @@ kbd{
     <tr><td>Numbers</td><td>code line numbers, heading numbers (1.2.3), equation numbers</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
     <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
+    <tr><td><kbd>[TOC]</kbd></td><td>table of contents built from the headings; <kbd>[text](#heading)</kbd> links jump to a heading</td></tr>
     <tr><td>Theme</td><td>Paper, Ink, GitHub, Whitey, Newsprint, Sepia, Night — <kbd>⌘⇧D</kbd> flips light/dark</td></tr>
     <tr><td>Custom theme</td><td>load a .css file from the Theme menu, or drop it on the window; see <kbd>themes/sample.css</kbd></td></tr>
     <tr><td>Width</td><td>line width on screen — narrow, regular, wide, max</td></tr>
@@ -466,7 +474,25 @@ const safeURL = u => /^(https?:|mailto:|data:image\/|#|\.|\/)/i.test(u) ? u : '#
    Anything rendered that is NOT part of the source carries data-x, so the
    text walkers skip it.                                                  */
 const ESCAPABLE = '\\`*_{}[]()#+-.!|>~=$"\'<:/';
-let refs = {}, fnDefs = [], fnNum = {};
+let refs = {}, fnDefs = [], fnNum = {}, headings = [];
+
+/* Heading text without inline syntax, and GitHub-style slugs (lowercase, punctuation
+   dropped, spaces to dashes, duplicates suffixed -1, -2 …). scan() and the export
+   walk the headings in the same order, so the ids agree. */
+function plainText(t) {
+  return t.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[\^[^\]]*\]/g, '').replace(/[*_~=`]+/g, '').trim();
+}
+function slugify(t, seen) {
+  let s = plainText(t).toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').trim().replace(/\s+/g, '-') || 'section';
+  if (!(s in seen)) { seen[s] = 0; return s; }
+  return s + '-' + (++seen[s]);
+}
+function tocHtml(items, clean) {
+  if (!items.length) return '<ul class="toc"><li class="empty">Table of contents — headings appear here</li></ul>';
+  const min = Math.min(...items.map(h => h.level));
+  return '<ul class="toc">' + items.map(h =>
+    `<li style="--d:${h.level - min + 1}"><a href="#${att(h.slug)}"${clean ? '' : ` data-line="${h.i}"`}>${esc(plainText(h.text))}</a></li>`).join('') + '</ul>';
+}
 
 const key = s => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -644,6 +670,7 @@ function scan(lines) {
   let blk = 0, tEnd = -1, listCtx = false, prevBlank = true;
   let codeFrom = 0, codeLang = '', eq = 0;
   let fmEnd = -1;
+  const seen = {}; headings = [];
   if (lines[0] === '---') fmEnd = lines.findIndex((x, j) => j > 0 && /^(---|\.\.\.)\s*$/.test(x));
 
   for (let i = 0; i < lines.length; i++) {
@@ -681,6 +708,9 @@ function scan(lines) {
     } else if (isTableStart(lines, i)) {
       blk++; tEnd = tableEnd(lines, i);
       f = { type:'table', cls:'trow', blk, kind:'table' };
+    } else if (/^\s*\[toc\]\s*$/i.test(l)) {
+      blk++;
+      f = { type:'toc', cls:'toc', blk, kind:'toc', last:true };
     } else if (/^ {4,}\S/.test(l) && !listCtx && prevBlank) {
       f = { type:'icode', cls:'code' };
     } else if (/^ {4,}\S/.test(l) && !listCtx && out.length && out[out.length - 1].type === 'icode') {
@@ -698,6 +728,7 @@ function scan(lines) {
       }
     }
 
+    if (f.type === 'h') { f.slug = slugify(f.text, seen); headings.push({ i, level: f.level, text: f.text, slug: f.slug }); }
     if (f.type === 'ul' || f.type === 'ol' || f.type === 'task') listCtx = true;
     else if (f.type === 'empty') prevBlank = true;
     else { prevBlank = false; if (!/^\s{2,}/.test(l) && f.type !== 'icode') listCtx = false; }
@@ -797,7 +828,8 @@ function coreLine(s, f) {
     case 'mathfence': return `<span class="tok">${esc(s)}</span>`;
     case 'mathsrc':
     case 'fm':        return esc(s);
-    case 'underline': return `<span class="tok">${esc(s)}</span>`;
+    case 'underline':
+    case 'toc':       return `<span class="tok">${esc(s)}</span>`;
     case 'fence':
       return esc(f.ws) + `<span class="tok">${esc(f.ticks)}</span>` +
              (f.lang ? `<span class="lang">${esc(f.lang)}</span>` : '');
@@ -868,6 +900,7 @@ function renderPreviews(deep) {
     let a = i;
     while (a > 0 && flags[a - 1] && flags[a - 1].blk === f.blk) a--;
     const body = f.kind === 'table' ? lines.slice(a, i + 1).join('\n')
+               : f.kind === 'toc'   ? JSON.stringify(headings.map(h => [h.level, h.text, h.slug]))
                                     : lines.slice(a + 1, i).join('\n').trim();
     if (host.dataset.src === body) continue;
     if (f.kind === 'mermaid') {
@@ -880,6 +913,9 @@ function renderPreviews(deep) {
     } else if (f.kind === 'front') {
       host.dataset.src = body;
       host.innerHTML = frontCard(lines.slice(a + 1, i));
+    } else if (f.kind === 'toc') {
+      host.dataset.src = body;
+      host.innerHTML = tocHtml(headings, false);
     } else {
       host.dataset.src = body;
       host.innerHTML = body ? mathHtml(body, true) + `<span class="eqno">(${f.eq})</span>` : '';
@@ -1092,6 +1128,15 @@ function updateCount() {
   $('#count').textContent = `${words.toLocaleString()} words · ${text.length.toLocaleString()} characters · ${mins} min read`;
 }
 
+function jumpToLine(i) {
+  const f = flags[i]; if (!f) return;
+  const lens = text.split('\n').map(l => l.length);
+  let pos = 0; for (let j = 0; j < i; j++) pos += lens[j] + 1;
+  editor.focus(); setSel(pos + (f.marker || '').length);
+  const el = editor.children[i];
+  if (el) wrap.scrollTop += el.getBoundingClientRect().top - innerHeight * 0.28;
+  updateActive();
+}
 function buildOutline() {
   if (!document.body.classList.contains('outline')) return;
   const box = $('#outline');
@@ -1101,18 +1146,11 @@ function buildOutline() {
   });
   box.innerHTML = '';
   if (!items.length) { box.innerHTML = '<div class="empty">Headings appear here as you write them.</div>'; return; }
-  const lens = text.split('\n').map(l => l.length);
   for (const it of items) {
     const d = document.createElement('div');
     d.className = 'd' + it.level;
-    d.textContent = it.t;
-    d.onclick = () => {
-      let pos = 0; for (let j = 0; j < it.i; j++) pos += lens[j] + 1;
-      editor.focus(); setSel(pos + (flags[it.i].marker || '').length);
-      const el = editor.children[it.i];
-      if (el) wrap.scrollTop += el.getBoundingClientRect().top - innerHeight * 0.28;
-      updateActive();
-    };
+    d.textContent = plainText(it.t);
+    d.onclick = () => jumpToLine(it.i);
     box.appendChild(d);
   }
 }
@@ -1232,6 +1270,14 @@ document.addEventListener('selectionchange', () => {
   if (document.activeElement === editor) updateActive();
 });
 editor.addEventListener('click', e => {
+  const link = e.target.closest && e.target.closest('a[href^="#"]');
+  if (link && editor.contains(link)) {
+    e.preventDefault();
+    let slug; try { slug = decodeURIComponent(link.getAttribute('href').slice(1)); } catch (err) { slug = link.getAttribute('href').slice(1); }
+    const h = link.dataset.line !== undefined ? { i: +link.dataset.line } : headings.find(x => x.slug === slug);
+    if (h) jumpToLine(h.i); else toast('No heading "' + slug + '"');
+    return;
+  }
   const li = e.target.closest && e.target.closest('.task');
   if (!li) return;
   if (e.clientX > li.getBoundingClientRect().left) return;   // only the checkbox gutter
@@ -1518,13 +1564,13 @@ function listHtml(nodes) {
   return html;
 }
 
-let eqN = 0;
+let eqN = 0, expSeen = {};
 function mdToHtml(src, top) {
   const lines = src.split('\n');
   const out = [];
   let i = 0, para = [];
   if (top) {
-    eqN = 0;
+    eqN = 0; expSeen = {};
     if (lines[0] === '---') { const e = lines.findIndex((x, j) => j > 0 && /^(---|\.\.\.)\s*$/.test(x)); if (e > 0) i = e + 1; }
   }
   const flush = () => {
@@ -1564,13 +1610,15 @@ function mdToHtml(src, top) {
 
     if (/^\s{0,3}\[\^([^\]\s]+)\]:/.test(l) || /^\s{0,3}\[([^\]^]+)\]:\s*\S+/.test(l)) { flush(); i++; continue; }
 
+    if (/^\s*\[toc\]\s*$/i.test(l)) { flush(); out.push(tocHtml(headings, true)); i++; continue; }
+
     if ((m = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l))) {
-      flush(); out.push(`<h${m[1].length}>` + inline(m[2], true) + `</h${m[1].length}>`); i++; continue; }
+      flush(); out.push(`<h${m[1].length}${top ? ` id="${att(slugify(m[2], expSeen))}"` : ''}>` + inline(m[2], true) + `</h${m[1].length}>`); i++; continue; }
 
     if (i + 1 < lines.length && l.trim() && /^\s{0,3}(=+|-+)\s*$/.test(lines[i + 1])
         && !/^\s*[-*+>#]/.test(l) && !/\|/.test(l) && !para.length) {
       const lvl = lines[i + 1].trim()[0] === '=' ? 1 : 2;
-      out.push(`<h${lvl}>` + inline(l.trim(), true) + `</h${lvl}>`); i += 2; continue; }
+      out.push(`<h${lvl}${top ? ` id="${att(slugify(l.trim(), expSeen))}"` : ''}>` + inline(l.trim(), true) + `</h${lvl}>`); i += 2; continue; }
 
     if (/^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(l)) { flush(); out.push('<hr>'); i++; continue; }
 
@@ -1676,6 +1724,10 @@ blockquote.alert{font-style:normal}
 sup a{text-decoration:none}
 hr{border:0;border-top:1px solid var(--rule);margin:2em 0}
 mark{background:var(--mark)}
+ul.toc{list-style:none;padding:0;margin:1em 0;font-family:var(--sans);font-size:.92em;line-height:1.75}
+ul.toc li{padding-left:calc((var(--d) - 1) * 1.2em)}
+ul.toc a{color:var(--ink);text-decoration:none}ul.toc a:hover{color:var(--accent)}
+h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]{scroll-margin-top:1em}
 .mathblock{margin:1.2em 0;overflow-x:auto;position:relative}
 .eqno{display:none;position:absolute;right:0;top:50%;transform:translateY(-50%);font-family:var(--sans);font-size:.85em;color:var(--ink-soft)}
 body.eqnos .eqno{display:block}

@@ -52,8 +52,8 @@ re-adds them and must be called after any render. This already caused one bug
 
 **5. Block previews use the fold mechanism, not a different one.**
 
-Tables, ```` ```mermaid ```` blocks, `$$…$$` blocks and a YAML front matter block
-at the top are runs of lines sharing
+Tables, ```` ```mermaid ```` blocks, `$$…$$` blocks, a YAML front matter block
+at the top and a `[TOC]` line are runs of lines sharing
 a `blk` id assigned in `scan()`. The last line of a run gets `f.last` and holds a
 `<span class="prev" data-x>`. When the caret is outside the run, every line in it
 gets `.fold`, which hides `.src` and collapses the line to zero height, leaving
@@ -73,7 +73,7 @@ Add a new block type by giving it a `blk`, a `kind`, and a branch in
 | GFM inline | `inline(s, clean)` — one tokenizer, two output modes |
 | tables | `splitRow`, `tableHtml`, run detection |
 | line classification | `classify()` — single line → type + css class |
-| document scan | `scan()` — stateful pass: fences, math, tables, setext, refs |
+| document scan | `scan()` — stateful pass: fences, math, tables, setext, refs, heading slugs |
 | line rendering | `renderLine` / `coreLine` |
 | syntax highlighting | `hlLang`, `hlRun`, `hlBlock`, `hlSplit`, `HL_CSS` |
 | chrome behaviour | `toggle`, the shared `openMenu` popup, the Numbers menu |
@@ -101,6 +101,20 @@ source text, only wrapped in spans, which is why invariant 1 holds without
 `data-x`. Colours are the `--hl-*` tokens; `HL_CSS` maps the hljs classes onto
 them and is injected into both the editor and the export. Mermaid fences and
 indented code are not highlighted.
+
+## Headings, slugs, TOC and internal links
+
+`scan()` gives every heading a GitHub-style slug (`slugify`: lowercase, punctuation
+dropped, spaces to dashes, duplicates suffixed `-1`, `-2`) and collects them in
+`headings`. The export computes slugs again in the same order with the same
+function, so `id` attributes agree with the editor. Headings inside blockquotes
+get no id (the export recursion is not `top`).
+
+A `[TOC]` line is a one-line block (`kind:'toc'`) whose preview is `tocHtml()`
+over `headings`; the preview key is the headings list, so it follows edits. In
+the editor each entry carries `data-line`, and a click on any `a[href^="#"]`
+inside the editor is intercepted: TOC entries jump by line, text links by slug
+lookup, both through `jumpToLine()` which the outline drawer uses too.
 
 ## Numbering and other class toggles
 
@@ -149,6 +163,7 @@ python3 -m http.server 8765 &
 node test/cdp.mjs http://localhost:8765/test/themes.html
 node test/cdp.mjs http://localhost:8765/test/highlight.html
 node test/cdp.mjs http://localhost:8765/test/small.html      # numbering, front matter, list cycling, settings
+node test/cdp.mjs http://localhost:8765/test/toc.html        # [TOC], slugs, internal links, export ids
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos' shot.png   # screenshot: theme, toggles
 node test/pdf.mjs http://localhost:8765/sumi.html out.pdf            # print a sample doc, reports page count
 ```

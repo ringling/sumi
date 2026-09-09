@@ -1,0 +1,61 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,400); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const src=['# Top','','[TOC]','','Jump to [the second part](#second-part-1) or [nowhere](#missing).','','## Second part','','text','','## Second part','','### **Bold** & co.','',...Array(40).fill('filler line'),'','## Far down','','end',''];
+const md=src.join('\n');
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(300); };
+const caretLine=()=>{ const s=w.getSelection(); if(!s.anchorNode) return -1; const el=(s.anchorNode.nodeType===1?s.anchorNode:s.anchorNode.parentElement).closest('.line'); return el?$$('#editor .line').indexOf(el):-1; };
+const caretIn=(line,off)=>{ const el=$$('#editor .line')[line]; const r=d.createRange(); const tn=[...el.childNodes].find(n=>n.nodeType===3)||el; r.setStart(tn, tn.nodeType===3?Math.min(off,tn.length):0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear();
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(md,'t.md'); caretIn(4,0); await sleep(150);
+  const L=$$('#editor .line');
+  ok(L[2].classList.contains('toc')&&L[2].classList.contains('fold'),'[TOC] line is a folded toc block');
+  const items=$$('#editor .line')[2].querySelectorAll('ul.toc li a');
+  ok(items.length===5,'toc lists 5 headings: '+items.length);
+  const hrefs=[...items].map(a=>a.getAttribute('href')).join(' ');
+  ok(hrefs==='#top #second-part #second-part-1 #bold-co #far-down','slugs with duplicate suffix and punctuation dropped: '+hrefs);
+  ok(items[3].textContent==='Bold & co.','toc entry text has inline syntax stripped: '+items[3].textContent);
+  ok(getComputedStyle(items[0].parentElement).paddingLeft==='0px'&&parseFloat(getComputedStyle(items[1].parentElement).paddingLeft)>10,'nesting by level via padding');
+  ok(L[2].querySelector('.prev[data-x]')!==null && L[2].querySelector('.src').textContent==='[TOC]','preview is data-x; source span is just [TOC]');
+  // click a toc entry -> caret lands on that heading, scrolled into view
+  const before=$('#wrap').scrollTop;
+  items[4].dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true})); await sleep(150);
+  ok(caretLine()===src.indexOf('## Far down'),'clicking toc entry moves caret to "Far down": line '+caretLine());
+  ok($('#wrap').scrollTop>before,'and scrolls the editor: '+before+' -> '+$('#wrap').scrollTop);
+  // internal link in text -> jump to second duplicate
+  caretIn(4,0); await sleep(100);
+  const link=$$('#editor .line')[4].querySelector('a[href="#second-part-1"]');
+  ok(!!link,'internal link rendered with its href');
+  link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true})); await sleep(150);
+  ok(caretLine()===10,'clicking [text](#second-part-1) jumps to the second "Second part": line '+caretLine());
+  // missing target -> toast, caret stays
+  caretIn(4,0); await sleep(100);
+  $$('#editor .line')[4].querySelector('a[href="#missing"]').dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true})); await sleep(100);
+  ok(/No heading/.test($('#toast').textContent)&&caretLine()===4,'missing target toasts and stays put: '+$('#toast').textContent);
+  // toc updates when a heading is added
+  caretIn(8,4); d.execCommand('insertText',false,'\n\n## Inserted'); await sleep(200);
+  const now=[...$$('#editor .line')[2].querySelectorAll('ul.toc li a')].map(a=>a.textContent).join('|');
+  ok(now==='Top|Second part|Inserted|Second part|Bold & co.|Far down','toc follows edits: '+now);
+  // caret inside the [TOC] line shows source and preview
+  caretIn(2,0); await sleep(100);
+  const tl=$$('#editor .line')[2];
+  ok(!tl.classList.contains('fold')&&tl.querySelector('.tok')&&tl.querySelector('ul.toc'),'caret on [TOC]: unfolded, source and list both shown');
+  // export
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  $('#bHtml').click(); await sleep(100); const html=await blob.text();
+  ok(/<h1 id="top">Top<\/h1>/.test(html),'export h1 id');
+  ok(/<h2 id="second-part">/.test(html)&&/<h2 id="second-part-1">/.test(html)&&/<h3 id="bold-co">/.test(html),'export duplicate and punctuation ids match the editor');
+  ok(/<ul class="toc">.*href="#far-down"/.test(html)&&!/data-line/.test(html),'export toc without editor-only attributes');
+  ok(/<a href="#second-part-1" target="_blank"/.test(html)||/<a href="#second-part-1"/.test(html),'export keeps internal link');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>
