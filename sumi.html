@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sumi</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.17.0/katex.min.css" crossorigin="anonymous">
+<style>
+/* ── tokens ──────────────────────────────────────────────────────────── */
+:root{
+  --paper:#eef0ec;      /* washi, cool not cream */
+  --paper-2:#e4e7e2;
+  --ink:#22262a;
+  --ink-soft:#565d63;
+  --ink-faint:#8d959b;
+  --rule:#cfd4ce;
+  --accent:#4a7d6f;     /* verdigris */
+  --code-bg:#e3e7e2;
+  --mark:#d9e6a8;
+  --sel:rgba(74,125,111,.20);
+  --shadow:0 1px 2px rgba(20,30,25,.06), 0 8px 30px rgba(20,30,25,.07);
+
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,ui-serif,serif;
+  --sans:ui-sans-serif,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+
+  --body:var(--serif);
+  --size:19px;
+  --measure:34em;
+  --lh:1.72;
+}
+html[data-theme="ink"]{
+  --paper:#1b1f22;
+  --paper-2:#22272a;
+  --ink:#d8dcd9;
+  --ink-soft:#9aa3a3;
+  --ink-faint:#6a7375;
+  --rule:#333a3d;
+  --accent:#7fb3a1;
+  --code-bg:#252b2e;
+  --mark:#4c5a33;
+  --sel:rgba(127,179,161,.22);
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:var(--size);
+  -webkit-font-smoothing:antialiased;
+  transition:background .3s ease,color .3s ease;
+}
+::selection{background:var(--sel)}
+
+/* ── chrome ──────────────────────────────────────────────────────────── */
+#bar{
+  position:fixed; inset:0 0 auto 0; height:46px; z-index:20;
+  display:flex; align-items:center; gap:2px; padding:0 12px;
+  font-family:var(--sans); font-size:12.5px; color:var(--ink-soft);
+  background:color-mix(in srgb, var(--paper) 86%, transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid transparent;
+  opacity:0; transition:opacity .25s ease, border-color .25s ease;
+}
+#bar.show{opacity:1; border-bottom-color:var(--rule)}
+#name{
+  font:inherit; color:var(--ink); background:none; border:0; padding:4px 6px;
+  border-radius:5px; width:15em; outline:none;
+}
+#name:focus{background:var(--paper-2)}
+.sp{flex:1}
+button.b{
+  font:inherit; color:var(--ink-soft); background:none; border:0;
+  padding:5px 9px; border-radius:6px; cursor:pointer;
+}
+button.b:hover{background:var(--paper-2); color:var(--ink)}
+button.b[aria-pressed="true"]{background:var(--accent); color:var(--paper)}
+button.b:focus-visible, #name:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.dot{width:1px;height:16px;background:var(--rule);margin:0 6px}
+
+#outline{
+  position:fixed; top:46px; bottom:0; left:0; width:230px; z-index:15;
+  padding:14px 8px 40px 16px; overflow:auto;
+  font-family:var(--sans); font-size:12.5px; line-height:1.5;
+  border-right:1px solid var(--rule); background:var(--paper);
+  transform:translateX(-100%); transition:transform .22s ease;
+}
+body.outline #outline{transform:none}
+#outline div{
+  padding:4px 6px; border-radius:5px; cursor:pointer; color:var(--ink-soft);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#outline div:hover{background:var(--paper-2); color:var(--ink)}
+#outline div.d2{padding-left:18px}
+#outline div.d3{padding-left:30px; font-size:12px}
+#outline div.d4,#outline div.d5,#outline div.d6{padding-left:42px; font-size:12px}
+#outline .empty{color:var(--ink-faint); cursor:default}
+
+#count{
+  position:fixed; right:16px; bottom:14px; z-index:20;
+  font-family:var(--sans); font-size:12px; color:var(--ink-faint);
+  background:color-mix(in srgb, var(--paper) 80%, transparent);
+  padding:4px 10px; border-radius:20px; backdrop-filter:blur(6px);
+  opacity:.55; transition:opacity .25s ease;
+}
+#count:hover{opacity:1}
+#toast{
+  position:fixed; left:50%; bottom:22px; transform:translate(-50%,12px);
+  z-index:30; font-family:var(--sans); font-size:12.5px;
+  background:var(--ink); color:var(--paper); padding:7px 14px; border-radius:8px;
+  opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease;
+}
+#toast.show{opacity:.95; transform:translate(-50%,0)}
+
+/* ── writing surface ─────────────────────────────────────────────────── */
+#wrap{height:100%; overflow-y:auto; scroll-behavior:auto}
+body.outline #wrap{padding-left:230px}
+#editor{
+  max-width:var(--measure); margin:0 auto;
+  padding:16vh 26px 60vh;
+  outline:none; line-height:var(--lh);
+  caret-color:var(--accent);
+  transition:max-width .2s ease;
+}
+body.typewriter #editor{padding-bottom:52vh; padding-top:44vh}
+
+.line{
+  position:relative;
+  min-height:calc(1em * var(--lh));
+  padding-left:calc(var(--ind,0) * 1.5em);
+  transition:opacity .25s ease;
+  white-space:pre-wrap;
+  word-wrap:break-word;
+}
+body.focus .line{opacity:.26}
+body.focus .line.near{opacity:1}
+
+/* hidden syntax */
+.tok{color:var(--accent); opacity:0; font-size:0; transition:font-size .12s ease, opacity .12s ease}
+.line.active .tok, html.reveal .tok{font-size:inherit; opacity:.45}
+
+.h{font-family:var(--body); font-weight:700; letter-spacing:-.015em; line-height:1.28; margin:1.4em 0 .1em}
+.h1{font-size:1.85em} .h2{font-size:1.45em} .h3{font-size:1.2em}
+.h4,.h5,.h6{font-size:1.02em; color:var(--ink-soft)}
+.line.h1{margin-top:1.1em}
+
+.quote{border-left:2px solid var(--accent); padding-left:.9em; color:var(--ink-soft); font-style:italic}
+.quote .tok{font-style:normal}
+
+.ul::before{
+  content:'•'; position:absolute; color:var(--accent); opacity:.7;
+  left:calc(var(--ind,0) * 1.5em - .95em);
+}
+.ul,.task{padding-left:calc(var(--ind,0) * 1.5em + .1em)}
+.task::before{
+  content:'○'; position:absolute; color:var(--ink-faint);
+  left:calc(var(--ind,0) * 1.5em - 1.05em); cursor:pointer;
+}
+.task.done::before{content:'●'; color:var(--accent)}
+.task.done{color:var(--ink-faint); text-decoration:line-through; text-decoration-color:var(--ink-faint)}
+.onum{color:var(--accent); opacity:.7}
+
+.rule{
+  display:block; height:0; border-bottom:1px solid var(--rule);
+  margin:.85em 0;
+}
+.line.hr{min-height:auto}
+
+.code, .fence{
+  font-family:var(--mono); font-size:.86em; background:var(--code-bg);
+  padding:0 1em; line-height:1.6; min-height:1.6em;
+}
+.fence.open{padding-top:.6em; border-radius:7px 7px 0 0; margin-top:.5em}
+.fence.close{padding-bottom:.6em; border-radius:0 0 7px 7px; margin-bottom:.5em}
+.lang{color:var(--ink-faint); font-size:.85em}
+code{font-family:var(--mono); font-size:.87em; background:var(--code-bg); padding:.1em .32em; border-radius:4px}
+
+.trow{font-family:var(--mono); font-size:.84em; line-height:1.65}
+.pipe{color:var(--ink-faint)}
+
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+strong{font-weight:700}
+em{font-style:italic}
+del{color:var(--ink-faint)}
+mark{background:var(--mark); color:inherit; padding:.05em .15em; border-radius:3px}
+.mdimg{display:block; max-width:100%; border-radius:6px; margin:.5em 0; box-shadow:var(--shadow)}
+.line.active .mdimg{opacity:.55}
+
+/* math & diagrams */
+.src{display:inline}
+.prev{display:block; margin:.7em 0; text-align:left; overflow-x:auto; line-height:1.2}
+.prev svg{display:block; margin:0 auto}
+.prev svg{max-width:100%; height:auto}
+.prev:empty{display:none}
+.line.active .kx{display:none}
+.kx{font-size:1.02em}
+.mathblk{font-family:var(--mono); font-size:.86em; background:var(--code-bg); padding:0 1em; min-height:1.6em}
+.mathblk.open{border-radius:7px 7px 0 0; padding-top:.5em; margin-top:.5em}
+.mathblk.close{border-radius:0 0 7px 7px; padding-bottom:.5em; margin-bottom:.5em}
+.err{font-family:var(--sans); font-size:12.5px; color:#b4544a; display:inline-block; text-align:left}
+.prev table{border-collapse:collapse; width:100%; table-layout:auto;
+  font-family:var(--sans); font-size:.82em; line-height:1.5}
+.prev th,.prev td{border:1px solid var(--rule); padding:.4em .7em; text-align:left;
+  white-space:normal; overflow-wrap:anywhere; hyphens:auto; min-width:0}
+.prev th code,.prev td code{white-space:normal; overflow-wrap:anywhere}
+.prev th{background:var(--paper-2); font-weight:600}
+.prev tbody tr:nth-child(even){background:color-mix(in srgb, var(--paper-2) 45%, transparent)}
+.setext{color:var(--ink-faint)}
+.line.setext{min-height:0}
+.refdef{font-family:var(--mono); font-size:.8em; color:var(--ink-faint)}
+.rawhtml{font-family:var(--mono); font-size:.84em; color:var(--ink-soft)}
+.fn{font-size:.7em; vertical-align:super; color:var(--accent); font-family:var(--sans)}
+.line.active .fn{display:none}
+.alert{border-left-width:3px}
+.alabel{font-family:var(--sans); font-size:.8em; font-weight:600; font-style:normal; letter-spacing:.01em}
+.a-note{border-left-color:#4a7d9e} .a-note .alabel{color:#4a7d9e}
+.a-tip{border-left-color:#4a7d6f} .a-tip .alabel{color:#4a7d6f}
+.a-important{border-left-color:#7a5aa0} .a-important .alabel{color:#7a5aa0}
+.a-warning{border-left-color:#b08b3a} .a-warning .alabel{color:#b08b3a}
+.a-caution{border-left-color:#b4544a} .a-caution .alabel{color:#b4544a}
+.line.fold{min-height:0; background:none; padding:0; margin:0}
+.line.fold .src{display:none}
+
+/* ── help ────────────────────────────────────────────────────────────── */
+#help{
+  position:fixed; inset:0; z-index:40; display:none;
+  place-items:center; background:color-mix(in srgb,var(--paper) 72%,transparent);
+  backdrop-filter:blur(6px);
+}
+#help.show{display:grid}
+#help .card{
+  background:var(--paper); border:1px solid var(--rule); border-radius:12px;
+  box-shadow:var(--shadow); padding:22px 26px; width:min(560px,90vw);
+  font-family:var(--sans); font-size:13px; color:var(--ink-soft);
+}
+#help h2{font-family:var(--body); font-size:20px; color:var(--ink); margin:0 0 14px}
+#help table{width:100%; border-collapse:collapse}
+#help td{padding:4px 0; vertical-align:top}
+#help td:first-child{width:11em; color:var(--ink)}
+kbd{
+  font-family:var(--mono); font-size:11.5px; background:var(--paper-2);
+  border:1px solid var(--rule); border-radius:4px; padding:1px 5px;
+}
+
+@media (max-width:720px){
+  #editor{padding:12vh 18px 60vh}
+  body.outline #wrap{padding-left:0}
+  #outline{width:78vw}
+  #name{width:8em}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{
+  #bar,#outline,#count,#toast,#help{display:none!important}
+  body{background:#fff; color:#000}
+  #wrap{overflow:visible; padding:0}
+  #editor{max-width:none; padding:0}
+  body.nomargin #editor{padding:0 4mm}
+  .tok,.src{display:none}
+  .line{opacity:1!important; min-height:0}
+  .prev{display:block!important}
+  .prev table,.code,.fence,pre{break-inside:avoid}
+  .h{break-after:avoid}
+  p,.para{orphans:3; widows:3}
+  body.pagebreak .h1,body.pagebreak .h2{break-before:page}
+  body.pagebreak .line:first-child{break-before:auto}
+}
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <input id="name" value="untitled.md" spellcheck="false" aria-label="File name">
+  <span class="sp"></span>
+  <button class="b" id="bOutline" aria-pressed="false" title="Outline — Cmd \">Outline</button>
+  <button class="b" id="bFocus" aria-pressed="false" title="Focus mode — Cmd Shift F">Focus</button>
+  <button class="b" id="bType" aria-pressed="false" title="Typewriter — Cmd Shift T">Typewriter</button>
+  <span class="dot"></span>
+  <button class="b" id="bWide" title="Line width">Width</button>
+  <button class="b" id="bFont" title="Typeface">Serif</button>
+  <button class="b" id="bTheme" title="Theme — Cmd Shift D">Dark</button>
+  <span class="dot"></span>
+  <button class="b" id="bOpen" title="Open — Cmd O">Open</button>
+  <button class="b" id="bSave" title="Save markdown — Cmd S">Save</button>
+  <button class="b" id="bMargin" title="Page margins for printing and PDF">Margin: wide</button>
+  <button class="b" id="bPages" aria-pressed="false" title="Start a new page at every # and ## when printing or exporting">Pages</button>
+  <button class="b" id="bHtml" title="Export HTML — Cmd Shift E">HTML</button>
+  <button class="b" id="bHelp" title="Shortcuts — Cmd /">?</button>
+</div>
+
+<nav id="outline" aria-label="Document outline"></nav>
+
+<div id="wrap"><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" role="textbox" aria-multiline="true"></div></div>
+
+<div id="count"></div>
+<div id="toast"></div>
+
+<div id="help"><div class="card">
+  <h2>Sumi</h2>
+  <table>
+    <tr><td><kbd>⌘B</kbd> <kbd>⌘I</kbd> <kbd>⌘K</kbd></td><td>bold, italic, link</td></tr>
+    <tr><td><kbd>⌘⇧K</kbd></td><td>inline code</td></tr>
+    <tr><td><kbd>⌘1</kbd>–<kbd>⌘6</kbd> <kbd>⌘0</kbd></td><td>heading level, plain paragraph</td></tr>
+    <tr><td><kbd>Tab</kbd> <kbd>⇧Tab</kbd></td><td>indent, outdent list item</td></tr>
+    <tr><td><kbd>⌘\</kbd></td><td>outline</td></tr>
+    <tr><td><kbd>⌘⇧F</kbd> <kbd>⌘⇧T</kbd></td><td>focus mode, typewriter mode</td></tr>
+    <tr><td><kbd>⌘⇧R</kbd></td><td>reveal all markdown syntax</td></tr>
+    <tr><td><kbd>⌘S</kbd> <kbd>⌘O</kbd></td><td>save, open</td></tr>
+    <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
+    <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
+    <tr><td>Pages</td><td>break to a new page at each # and ## when printing</td></tr>
+    <tr><td>Margin</td><td>page margins for print and PDF — wide, narrow, none</td></tr>
+    <tr><td><kbd>$x$</kbd> <kbd>$$…$$</kbd></td><td>inline and block LaTeX (KaTeX)</td></tr>
+    <tr><td><kbd>```mermaid</kbd></td><td>diagram block, drawn below the source</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>close this</td></tr>
+  </table>
+</div></div>
+
+<input type="file" id="picker" accept=".md,.markdown,.mdown,.txt,text/plain" hidden>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const editor = $('#editor'), wrap = $('#wrap');
+
+/* ── text helpers ─────────────────────────────────────────────────────── */
+const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const att = s => s.replace(/["&<>]/g, c => ({'"':'&quot;','&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const safeURL = u => /^(https?:|mailto:|data:image\/|#|\.|\/)/i.test(u) ? u : '#';
+
+/* ── GFM inline ────────────────────────────────────────────────────────
+   clean=false → editor mode: syntax stays in the text, wrapped in .tok
+   clean=true  → export mode: syntax dropped
+   Anything rendered that is NOT part of the source carries data-x, so the
+   text walkers skip it.                                                  */
+const ESCAPABLE = '\\`*_{}[]()#+-.!|>~=$"\'<:/';
+let refs = {}, fnDefs = [], fnNum = {};
+
+const key = s => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+function collectRefs(lines) {
+  refs = {}; fnDefs = []; fnNum = {};
+  let fence = false;
+  for (const l of lines) {
+    if (/^\s*(```|~~~)/.test(l)) { fence = !fence; continue; }
+    if (fence) continue;
+    let m;
+    if ((m = /^\s{0,3}\[\^([^\]\s]+)\]:\s*(.*)$/.exec(l))) {
+      if (!(key(m[1]) in fnNum)) { fnNum[key(m[1])] = fnDefs.length + 1; fnDefs.push({ id: m[1], text: m[2] }); }
+    } else if ((m = /^\s{0,3}\[([^\]^]+)\]:\s*(\S+)(?:\s+"([^"]*)")?\s*$/.exec(l))) {
+      refs[key(m[1])] = { url: m[2], title: m[3] || '' };
+    }
+  }
+}
+
+function autolink(url, clean, T) {
+  const trail = /[.,;:!?)\]'"]+$/.exec(url);
+  let tail = '';
+  if (trail) { tail = trail[0]; url = url.slice(0, -tail.length); }
+  return [`<a href="${att(safeURL(url))}" target="_blank" rel="noreferrer">${esc(url)}</a>` + esc(tail), url.length + tail.length];
+}
+
+function inline(s, clean) {
+  const T = clean ? () => '' : t => `<span class="tok">${esc(t)}</span>`;
+  let out = '', i = 0, m;
+  while (i < s.length) {
+    const r = s.slice(i), c = s[i];
+
+    if (c === '\\' && i + 1 < s.length && ESCAPABLE.includes(s[i + 1])) {
+      out += T('\\') + esc(s[i + 1]); i += 2; continue; }
+
+    if ((m = /^(`+)([^`]+)\1(?!`)/.exec(r))) {
+      out += T(m[1]) + '<code>' + esc(m[2]) + '</code>' + T(m[1]); i += m[0].length; continue; }
+
+    if ((m = /^<((?:https?|mailto):[^>\s]+)>/.exec(r))) {
+      out += T('<') + `<a href="${att(safeURL(m[1]))}" target="_blank" rel="noreferrer">${esc(m[1])}</a>` + T('>');
+      i += m[0].length; continue; }
+
+    if ((m = /^\$\$([^$\n]+)\$\$/.exec(r))) {
+      out += clean ? mathHtml(m[1], true)
+                   : T('$$') + `<span class="tok">${esc(m[1])}</span>` + T('$$')
+                     + `<span class="kx" data-x contenteditable="false">${mathHtml(m[1], true)}</span>`;
+      i += m[0].length; continue; }
+    if ((m = /^\$([^\s$](?:[^$\n]*[^\s$])?)\$/.exec(r)) && !/^[\d.,]+$/.test(m[1])) {
+      out += clean ? mathHtml(m[1], false)
+                   : T('$') + `<span class="tok">${esc(m[1])}</span>` + T('$')
+                     + `<span class="kx" data-x contenteditable="false">${mathHtml(m[1], false)}</span>`;
+      i += m[0].length; continue; }
+
+    if ((m = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/.exec(r))) {
+      out += clean ? `<img src="${att(safeURL(m[2]))}" alt="${att(m[1])}">`
+                   : T('![') + esc(m[1]) + T(m[0].slice(2 + m[1].length));
+      i += m[0].length; continue; }
+
+    if ((m = /^\[\^([^\]\s]+)\]/.exec(r)) && key(m[1]) in fnNum) {
+      const n = fnNum[key(m[1])];
+      out += clean ? `<sup id="fnref-${att(m[1])}"><a href="#fn-${att(m[1])}">${n}</a></sup>`
+                   : T(m[0]) + `<sup class="fn" data-x contenteditable="false">${n}</sup>`;
+      i += m[0].length; continue; }
+
+    if ((m = /^\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/.exec(r))) {
+      out += T('[') + `<a href="${att(safeURL(m[2]))}" target="_blank" rel="noreferrer">`
+           + inline(m[1], clean) + '</a>' + T(m[0].slice(1 + m[1].length));
+      i += m[0].length; continue; }
+
+    if ((m = /^\[([^\]]+)\](?:\[([^\]]*)\])?/.exec(r))) {
+      const ref = refs[key(m[2] || m[1])];
+      if (ref) {
+        out += T('[') + `<a href="${att(safeURL(ref.url))}"${ref.title ? ` title="${att(ref.title)}"` : ''} target="_blank" rel="noreferrer">`
+             + inline(m[1], clean) + '</a>' + T(m[0].slice(1 + m[1].length));
+        i += m[0].length; continue; }
+    }
+
+    if ((m = /^\*\*([^\s*](?:[^*]*[^\s*])?)\*\*/.exec(r))) {
+      out += T('**') + '<strong>' + inline(m[1], clean) + '</strong>' + T('**'); i += m[0].length; continue; }
+    if ((m = /^__([^\s_](?:[^_]*[^\s_])?)__/.exec(r)) && !/[A-Za-z0-9]/.test(s[i - 1] || '')) {
+      out += T('__') + '<strong>' + inline(m[1], clean) + '</strong>' + T('__'); i += m[0].length; continue; }
+    if ((m = /^\*([^\s*](?:[^*]*[^\s*])?)\*/.exec(r))) {
+      out += T('*') + '<em>' + inline(m[1], clean) + '</em>' + T('*'); i += m[0].length; continue; }
+    if ((m = /^_([^\s_](?:[^_]*[^\s_])?)_/.exec(r)) && !/[A-Za-z0-9]/.test(s[i - 1] || '')) {
+      out += T('_') + '<em>' + inline(m[1], clean) + '</em>' + T('_'); i += m[0].length; continue; }
+    if ((m = /^~~([^~]+)~~/.exec(r))) {
+      out += T('~~') + '<del>' + inline(m[1], clean) + '</del>' + T('~~'); i += m[0].length; continue; }
+    if ((m = /^==([^=]+)==/.exec(r))) {
+      out += T('==') + '<mark>' + inline(m[1], clean) + '</mark>' + T('=='); i += m[0].length; continue; }
+
+    if ((c === 'h' || c === 'w') && (i === 0 || /[\s(*_~>]/.test(s[i - 1]))
+        && (m = /^(https?:\/\/|www\.)[^\s<>]+/.exec(r))) {
+      const [html, len] = autolink(m[0], clean, T);
+      out += html; i += len; continue; }
+
+    out += esc(c); i++;
+  }
+  return out;
+}
+
+/* ── tables ──────────────────────────────────────────────────────────── */
+function splitRow(row) {
+  let t = row.trim(), cells = [], cur = '';
+  if (t.startsWith('|')) t = t.slice(1);
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === '\\' && t[i + 1] === '|') { cur += '|'; i++; continue; }
+    if (t[i] === '|') { cells.push(cur); cur = ''; continue; }
+    cur += t[i];
+  }
+  if (cur.trim() || cells.length === 0) cells.push(cur);
+  return cells.map(c => c.trim());
+}
+const isDelimRow = l => /\|/.test(l) && /^[\s|:\-]+$/.test(l) && /-/.test(l);
+const isTableStart = (lines, i) =>
+  /\|/.test(lines[i]) && lines[i].trim() && !isDelimRow(lines[i]) &&
+  i + 1 < lines.length && isDelimRow(lines[i + 1]);
+function tableEnd(lines, i) {
+  let j = i + 2;
+  while (j < lines.length && lines[j].trim() && /\|/.test(lines[j]) && !/^\s*(```|~~~)/.test(lines[j])) j++;
+  return j - 1;
+}
+function tableHtml(rows) {
+  const align = splitRow(rows[1]).map(c =>
+    /^:-+:$/.test(c) ? 'center' : /^-+:$/.test(c) ? 'right' : /^:-+$/.test(c) ? 'left' : '');
+  const cell = (tag, c, n) =>
+    `<${tag}${align[n] ? ` style="text-align:${align[n]}"` : ''}>${inline(c, true)}</${tag}>`;
+  let h = '<table><thead><tr>' + splitRow(rows[0]).map((c, n) => cell('th', c, n)).join('') + '</tr></thead>';
+  const body = rows.slice(2).map(r => '<tr>' + splitRow(r).map((c, n) => cell('td', c, n)).join('') + '</tr>').join('');
+  return h + (body ? '<tbody>' + body + '</tbody>' : '') + '</table>';
+}
+
+/* ── line classification ─────────────────────────────────────────────── */
+const ALERTS = ['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'];
+
+function classify(t) {
+  const f = {};
+  let m;
+  if (!t.trim()) { f.type = 'empty'; f.cls = 'empty'; return f; }
+  if ((m = /^(#{1,6})\s+/.exec(t))) {
+    f.type = 'h'; f.level = m[1].length; f.marker = m[0];
+    f.cls = 'h h' + f.level; f.text = t.slice(m[0].length); return f; }
+  if (/^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(t)) { f.type = 'hr'; f.cls = 'hr'; return f; }
+  if ((m = /^(\s*)>\s?/.exec(t))) {
+    f.type = 'quote'; f.marker = m[0]; f.cls = 'quote';
+    f.ind = Math.floor(m[1].length / 2); f.text = t.slice(m[0].length);
+    const a = /^\[!(\w+)\]\s*$/.exec(f.text.trim());
+    if (a && ALERTS.includes(a[1].toUpperCase())) { f.alert = a[1].toUpperCase(); f.cls += ' alert a-' + f.alert.toLowerCase(); }
+    return f; }
+  if ((m = /^\s{0,3}\[\^([^\]\s]+)\]:\s*/.exec(t))) {
+    f.type = 'fndef'; f.marker = m[0]; f.cls = 'refdef'; f.text = t.slice(m[0].length); return f; }
+  if ((m = /^\s{0,3}\[([^\]^]+)\]:\s*\S+/.exec(t))) {
+    f.type = 'refdef'; f.cls = 'refdef'; return f; }
+  if ((m = /^(\s*)([-*+])\s+\[([ xX])\]\s+/.exec(t))) {
+    f.type = 'task'; f.marker = m[0]; f.done = m[3] !== ' ';
+    f.cls = 'task' + (f.done ? ' done' : ''); f.ind = Math.floor(m[1].length / 2) + 1;
+    f.text = t.slice(m[0].length); return f; }
+  if ((m = /^(\s*)([-*+])\s+/.exec(t))) {
+    f.type = 'ul'; f.marker = m[0]; f.cls = 'ul';
+    f.ind = Math.floor(m[1].length / 2) + 1; f.text = t.slice(m[0].length); return f; }
+  if ((m = /^(\s*)(\d+[.)])(\s+)/.exec(t))) {
+    f.type = 'ol'; f.pre = m[1]; f.num = m[2]; f.gap = m[3];
+    f.cls = 'ol'; f.ind = Math.floor(m[1].length / 2) + 1;
+    f.text = t.slice(m[0].length); return f; }
+  if (/^\s*<\/?[a-zA-Z][^>]*>/.test(t)) { f.type = 'html'; f.cls = 'rawhtml'; return f; }
+  if (/^\s*!\[[^\]]*\]\([^)\s]+\)\s*$/.test(t)) { f.type = 'img'; f.cls = 'para'; return f; }
+  f.type = 'p'; f.cls = 'para'; return f;
+}
+
+/* ── document scan ───────────────────────────────────────────────────── */
+let blkCount = 0;
+function scan(lines) {
+  collectRefs(lines);
+  const out = [];
+  let inCode = false, tick = '', inMath = false, mer = false;
+  let blk = 0, tEnd = -1, listCtx = false, prevBlank = true;
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    let f;
+    const fence = /^(\s*)(```+|~~~+)(.*)$/.exec(l);
+
+    if (fence && !inMath && (!inCode || fence[2][0] === tick)) {
+      const opening = !inCode;
+      if (opening && fence[3].trim().toLowerCase() === 'mermaid') { mer = true; blk++; }
+      f = { type:'fence', open:opening, ws:fence[1], ticks:fence[2], lang:fence[3] };
+      f.cls = 'fence ' + (opening ? 'open' : 'close');
+      if (mer) { f.blk = blk; f.kind = 'mermaid'; if (!opening) { f.last = true; mer = false; } }
+      tick = opening ? fence[2][0] : '';
+      inCode = opening;
+    } else if (inCode) {
+      f = { type:'code', cls:'code' };
+      if (mer) { f.blk = blk; f.kind = 'mermaid'; }
+    } else if (/^\s*\$\$\s*$/.test(l)) {
+      if (!inMath) blk++;
+      f = { type:'mathfence', cls:'mathblk ' + (inMath ? 'close' : 'open'), blk, kind:'math' };
+      if (inMath) f.last = true;
+      inMath = !inMath;
+    } else if (inMath) {
+      f = { type:'mathsrc', cls:'mathblk', blk, kind:'math' };
+    } else if (i <= tEnd) {
+      f = { type:'table', cls:'trow', blk, kind:'table' };
+      if (i === tEnd) { f.last = true; tEnd = -1; }
+    } else if (isTableStart(lines, i)) {
+      blk++; tEnd = tableEnd(lines, i);
+      f = { type:'table', cls:'trow', blk, kind:'table' };
+    } else if (/^ {4,}\S/.test(l) && !listCtx && prevBlank) {
+      f = { type:'icode', cls:'code' };
+    } else if (/^ {4,}\S/.test(l) && !listCtx && out.length && out[out.length - 1].type === 'icode') {
+      f = { type:'icode', cls:'code' };
+    } else {
+      f = classify(l);
+      if (f.type === 'p' && i + 1 < lines.length && /^\s{0,3}(=+|-+)\s*$/.test(lines[i + 1])
+          && lines[i + 1].trim().length) {
+        f = { type:'h', level: lines[i + 1].trim()[0] === '=' ? 1 : 2, marker:'', text:l, setext:true };
+        f.cls = 'h h' + f.level;
+      } else if (f.type === 'hr' && out.length && out[out.length - 1].setext) {
+        f = { type:'underline', cls:'setext' };
+      } else if (/^\s{0,3}=+\s*$/.test(l) && out.length && out[out.length - 1].setext) {
+        f = { type:'underline', cls:'setext' };
+      }
+    }
+
+    if (f.type === 'ul' || f.type === 'ol' || f.type === 'task') listCtx = true;
+    else if (f.type === 'empty') prevBlank = true;
+    else { prevBlank = false; if (!/^\s{2,}/.test(l) && f.type !== 'icode') listCtx = false; }
+    if (f.type !== 'empty') prevBlank = false;
+
+    f.k = JSON.stringify(f);
+    out.push(f);
+  }
+  blkCount = blk;
+  return out;
+}
+
+/* ── line rendering ──────────────────────────────────────────────────── */
+function renderLine(s, f) {
+  let h = coreLine(s, f);
+  if (f.blk) h = `<span class="src">${h || '&#8203;'}</span>`;
+  if (f.last) h += '<span class="prev" data-x contenteditable="false"></span>';
+  return h;
+}
+
+function coreLine(s, f) {
+  switch (f.type) {
+    case 'mathfence': return `<span class="tok">${esc(s)}</span>`;
+    case 'mathsrc':   return esc(s);
+    case 'underline': return `<span class="tok">${esc(s)}</span>`;
+    case 'fence':
+      return esc(f.ws) + `<span class="tok">${esc(f.ticks)}</span>` +
+             (f.lang ? `<span class="lang">${esc(f.lang)}</span>` : '');
+    case 'code':
+    case 'icode':
+    case 'html':  return esc(s);
+    case 'hr':    return `<span class="tok">${esc(s)}</span><span class="rule"></span>`;
+    case 'h':     return (f.marker ? `<span class="tok">${esc(f.marker)}</span>` : '') + inline(f.text);
+    case 'quote': return `<span class="tok">${esc(f.marker)}</span>` +
+                         (f.alert ? `<span class="tok">${esc(f.text)}</span><span class="alabel" data-x>${f.alert[0] + f.alert.slice(1).toLowerCase()}</span>`
+                                  : inline(f.text));
+    case 'task':
+    case 'ul':    return `<span class="tok">${esc(f.marker)}</span>` + inline(f.text);
+    case 'ol':    return `<span class="tok">${esc(f.pre)}</span><span class="onum">${esc(f.num)}</span>`
+                       + esc(f.gap) + inline(f.text);
+    case 'fndef': return `<span class="tok">${esc(f.marker)}</span><span class="fn" data-x>${fnNum[key(/\[\^([^\]\s]+)\]/.exec(f.marker)[1])] || '?'}</span> ` + inline(f.text);
+    case 'refdef': return inline(s);
+    case 'table': return esc(s).replace(/\|/g, '<span class="pipe">|</span>');
+    case 'img': {
+      const m = /!\[([^\]]*)\]\(([^)\s]+)\)/.exec(s);
+      return inline(s) + `<img class="mdimg" src="${att(safeURL(m[2]))}" alt="${att(m[1])}">`; }
+    default:      return inline(s);
+  }
+}
+
+/* ── math & diagrams ──────────────────────────────────────────────────── */
+function mathHtml(tex, display) {
+  if (!window.katex) return '';
+  try { return katex.renderToString(tex, { displayMode: display, throwOnError: false }); }
+  catch (e) { return `<span class="err">${esc(String(e.message || e))}</span>`; }
+}
+
+let mid = 0;
+async function drawMermaid(host, code) {
+  if (!window.mermaid) { host.innerHTML = '<span class="err">Mermaid needs a connection the first time it loads.</span>'; return; }
+  const id = 'mm' + (++mid);
+  try {
+    const { svg } = await mermaid.render(id, code);
+    host.innerHTML = svg;
+  } catch (e) {
+    const el = document.getElementById('d' + id); if (el) el.remove();
+    host.innerHTML = `<span class="err">${esc(String((e && e.message) || e).split('\n')[0])}</span>`;
+  }
+}
+
+/* Fill the preview slot at the end of each math or mermaid block.
+   deep=false skips mermaid, so diagrams redraw only when typing pauses. */
+function renderPreviews(deep) {
+  if (!blkCount) return;
+  const kids = editor.children, lines = text.split('\n');
+  for (let i = 0; i < kids.length; i++) {
+    const f = flags[i];
+    if (!f || !f.last) continue;
+    const host = kids[i].querySelector('.prev');
+    if (!host) continue;
+    let a = i;
+    while (a > 0 && flags[a - 1] && flags[a - 1].blk === f.blk) a--;
+    const body = f.kind === 'table' ? lines.slice(a, i + 1).join('\n')
+                                    : lines.slice(a + 1, i).join('\n').trim();
+    if (host.dataset.src === body) continue;
+    if (f.kind === 'mermaid') {
+      if (!deep) continue;
+      host.dataset.src = body;
+      if (body) drawMermaid(host, body); else host.innerHTML = '';
+    } else if (f.kind === 'table') {
+      host.dataset.src = body;
+      host.innerHTML = tableHtml(body.split('\n'));
+    } else {
+      host.dataset.src = body;
+      host.innerHTML = body ? mathHtml(body, true) : '';
+    }
+  }
+}
+
+function forceRender() {
+  const sel = selRange();
+  for (const el of editor.children) el.dataset.k = '';
+  for (const el of editor.querySelectorAll('.prev')) delete el.dataset.src;
+  render(text);
+  if (sel) setSel(sel.start, sel.end);
+  renderPreviews(true);
+  updateActive();
+}
+
+/* ── DOM <-> text ─────────────────────────────────────────────────────── */
+const units = () => [...editor.childNodes];
+/* rendered math and diagrams are marked data-x: they carry text nodes that
+   are NOT part of the document, so every text walk skips them. */
+function unitText(n) {
+  if (n.nodeType === 3) return n.data;
+  if (n.nodeType !== 1) return '';
+  if (n.dataset && n.dataset.x !== undefined) return '';
+  let out = '';
+  for (const c of n.childNodes) out += unitText(c);
+  return out;
+}
+const getText = () => units().map(unitText).join('\n');
+
+function selRange() {
+  const sel = getSelection();
+  if (!sel.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (!editor.contains(r.startContainer)) return null;
+  return { start: offsetOf(r.startContainer, r.startOffset),
+           end:   offsetOf(r.endContainer, r.endOffset) };
+}
+
+function offsetOf(node, off) {
+  const us = units();
+  if (node === editor) { let n = 0; for (let i = 0; i < off; i++) n += unitText(us[i]).length + 1; return n; }
+  let owner = node, idx = -1;
+  while (owner && owner.parentNode !== editor) owner = owner.parentNode;
+  idx = us.indexOf(owner);
+  if (idx < 0) return 0;
+  let base = 0;
+  for (let i = 0; i < idx; i++) base += unitText(us[i]).length + 1;
+  if (owner.nodeType === 3) return base + off;
+  let acc = 0, done = false;
+  (function walk(n) {
+    if (done) return;
+    if (n === node) {
+      if (n.nodeType === 3) { acc += off; }
+      else { for (let i = 0; i < off && i < n.childNodes.length; i++) acc += unitText(n.childNodes[i]).length; }
+      done = true; return;
+    }
+    if (n.nodeType === 1 && n.dataset && n.dataset.x !== undefined) return;
+    if (n.nodeType === 3) { acc += n.data.length; return; }
+    for (const c of n.childNodes) { walk(c); if (done) return; }
+  })(owner);
+  return base + acc;
+}
+
+function locate(pos) {
+  const us = units();
+  let base = 0;
+  for (const u of us) {
+    const len = unitText(u).length;
+    if (pos <= base + len) {
+      if (u.nodeType === 3) return [u, pos - base];
+      let rem = pos - base, res = null;
+      (function walk(n) {
+        if (res) return;
+        if (n.nodeType === 1 && n.dataset && n.dataset.x !== undefined) return;
+        if (n.nodeType === 3) { if (rem <= n.data.length) res = [n, rem]; else rem -= n.data.length; return; }
+        for (const c of n.childNodes) { walk(c); if (res) return; }
+      })(u);
+      return res || [u, 0];
+    }
+    base += len + 1;
+  }
+  const last = editor.lastChild;
+  return last ? [last, last.nodeType === 3 ? last.data.length : last.childNodes.length] : [editor, 0];
+}
+
+function setSel(start, end = start) {
+  const [n1, o1] = locate(start), [n2, o2] = locate(end);
+  const r = document.createRange();
+  try { r.setStart(n1, o1); r.setEnd(n2, o2); } catch (e) { return; }
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+}
+
+/* ── render ───────────────────────────────────────────────────────────── */
+let flags = [];
+function render(text) {
+  const lines = text.split('\n');
+  flags = scan(lines);
+  for (const n of units()) if (n.nodeType !== 1 || !n.classList.contains('line')) n.remove();
+  const kids = editor.children;
+  while (kids.length > lines.length) editor.removeChild(editor.lastChild);
+  for (let i = 0; i < lines.length; i++) {
+    let el = kids[i];
+    if (!el) { el = document.createElement('div'); editor.appendChild(el); }
+    const key = flags[i].k + '\u0000' + lines[i];
+    if (el.dataset.k === key) continue;
+    el.dataset.k = key;
+    el.className = 'line ' + (flags[i].cls || '');
+    if (flags[i].ind) el.style.setProperty('--ind', flags[i].ind);
+    else el.style.removeProperty('--ind');
+    el.innerHTML = renderLine(lines[i], flags[i]) || '<br>';
+  }
+}
+
+/* ── state ────────────────────────────────────────────────────────────── */
+let text = '', composing = false, activeLine = -1;
+let hist = [], hi = -1, lastPush = 0;
+
+function record(t, sel) {
+  const now = Date.now();
+  if (hi >= 0 && hist[hi].text === t) { hist[hi].sel = sel; return; }
+  const coalesce = hi > 0 && now - lastPush < 700 && !/\n$/.test(t);
+  if (coalesce) hist[hi] = { text: t, sel };
+  else { hist = hist.slice(0, hi + 1); hist.push({ text: t, sel }); hi = hist.length - 1; }
+  if (hist.length > 300) { hist.shift(); hi--; }
+  lastPush = now;
+}
+function undo() { if (hi > 0) { hi--; apply(hist[hi]); } }
+function redo() { if (hi < hist.length - 1) { hi++; apply(hist[hi]); } }
+function apply(snap) {
+  text = snap.text; render(text);
+  setSel(snap.sel.start, snap.sel.end);
+  afterChange(false);
+}
+
+function setText(t, start, end, push = true) {
+  text = t;
+  render(text);
+  if (start != null) setSel(start, end == null ? start : end);
+  if (push) record(text, selRange() || { start: 0, end: 0 });
+  afterChange();
+}
+
+function sync() {
+  if (composing) return;
+  const t = getText(), sel = selRange() || { start: 0, end: 0 };
+  text = t;
+  render(text);
+  setSel(sel.start, sel.end);
+  record(text, sel);
+  afterChange();
+}
+
+let chromeTimer = null, prevTimer = null;
+function afterChange(save = true) {
+  updateActive();
+  updateCount();
+  buildOutline();
+  renderPreviews(false);
+  clearTimeout(prevTimer);
+  prevTimer = setTimeout(() => renderPreviews(true), 450);
+  if (save) { clearTimeout(chromeTimer); chromeTimer = setTimeout(store, 900); }
+}
+
+/* ── active line, focus, typewriter ───────────────────────────────────── */
+let raf = null;
+function updateActive() {
+  const sel = selRange();
+  const kids = editor.children;
+  let idx = -1;
+  if (sel) {
+    let base = 0;
+    for (let i = 0; i < kids.length; i++) {
+      const len = unitText(kids[i]).length;
+      if (sel.start <= base + len) { idx = i; break; }
+      base += len + 1;
+    }
+  }
+  if (kids[activeLine] && activeLine !== idx) kids[activeLine].classList.remove('active');
+  if (kids[idx]) kids[idx].classList.add('active');
+  activeLine = idx;
+  if (blkCount) {
+    const open = flags[idx] ? flags[idx].blk : null;
+    for (let i = 0; i < kids.length; i++) {
+      const b = flags[i] && flags[i].blk;
+      kids[i].classList.toggle('fold', !!b && b !== open);
+    }
+  }
+  if (document.body.classList.contains('focus')) {
+    let a = idx, b = idx;
+    while (a > 0 && flags[a - 1] && flags[a - 1].type !== 'empty') a--;
+    while (b < kids.length - 1 && flags[b + 1] && flags[b + 1].type !== 'empty') b++;
+    for (let i = 0; i < kids.length; i++) kids[i].classList.toggle('near', i >= a && i <= b);
+  }
+  if (document.body.classList.contains('typewriter') && kids[idx]) {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const r = kids[idx].getBoundingClientRect();
+      const delta = r.top + r.height / 2 - innerHeight / 2;
+      if (Math.abs(delta) > 4) wrap.scrollTop += delta;
+    });
+  }
+}
+
+function updateCount() {
+  const plain = text.replace(/```[\s\S]*?```/g, ' ').replace(/[#>*_`~\-\[\]()!|]/g, ' ');
+  const words = plain.split(/\s+/).filter(Boolean).length;
+  const mins = Math.max(1, Math.round(words / 220));
+  $('#count').textContent = `${words.toLocaleString()} words · ${text.length.toLocaleString()} characters · ${mins} min read`;
+}
+
+function buildOutline() {
+  if (!document.body.classList.contains('outline')) return;
+  const box = $('#outline');
+  const items = [];
+  text.split('\n').forEach((l, i) => {
+    if (flags[i] && flags[i].type === 'h') items.push({ i, level: flags[i].level, t: flags[i].text });
+  });
+  box.innerHTML = '';
+  if (!items.length) { box.innerHTML = '<div class="empty">Headings appear here as you write them.</div>'; return; }
+  const lens = text.split('\n').map(l => l.length);
+  for (const it of items) {
+    const d = document.createElement('div');
+    d.className = 'd' + it.level;
+    d.textContent = it.t;
+    d.onclick = () => {
+      let pos = 0; for (let j = 0; j < it.i; j++) pos += lens[j] + 1;
+      editor.focus(); setSel(pos + (flags[it.i].marker || '').length);
+      const el = editor.children[it.i];
+      if (el) wrap.scrollTop += el.getBoundingClientRect().top - innerHeight * 0.28;
+      updateActive();
+    };
+    box.appendChild(d);
+  }
+}
+
+/* ── editing commands ─────────────────────────────────────────────────── */
+function lineBounds(pos) {
+  const a = text.lastIndexOf('\n', pos - 1) + 1;
+  let b = text.indexOf('\n', pos); if (b < 0) b = text.length;
+  return [a, b];
+}
+
+function insert(str, sel) {
+  sel = sel || selRange(); if (!sel) return;
+  setText(text.slice(0, sel.start) + str + text.slice(sel.end), sel.start + str.length);
+}
+
+function wrapSel(l, r = l, placeholder = '') {
+  const sel = selRange(); if (!sel) return;
+  const inner = text.slice(sel.start, sel.end) || placeholder;
+  const already = text.slice(sel.start - l.length, sel.start) === l &&
+                  text.slice(sel.end, sel.end + r.length) === r;
+  if (already) {
+    setText(text.slice(0, sel.start - l.length) + inner + text.slice(sel.end + r.length),
+            sel.start - l.length, sel.end - l.length);
+    return;
+  }
+  const out = text.slice(0, sel.start) + l + inner + r + text.slice(sel.end);
+  if (sel.start === sel.end && !placeholder) setText(out, sel.start + l.length);
+  else setText(out, sel.start + l.length, sel.start + l.length + inner.length);
+}
+
+function heading(n) {
+  const sel = selRange(); if (!sel) return;
+  const [a, b] = lineBounds(sel.start);
+  const cur = text.slice(a, b);
+  const stripped = cur.replace(/^#{1,6}\s+/, '');
+  const pre = n ? '#'.repeat(n) + ' ' : '';
+  setText(text.slice(0, a) + pre + stripped + text.slice(b),
+          a + pre.length + Math.max(0, sel.start - a - (cur.length - stripped.length)));
+}
+
+function handleEnter() {
+  const sel = selRange(); if (!sel) return;
+  const [a] = lineBounds(sel.start);
+  const cur = text.slice(a, sel.start);
+  const m = /^(\s*)(?:([-*+])\s+(\[[ xX]\]\s+)?|(\d+)([.)])\s+|(>\s?))/.exec(cur);
+  if (m) {
+    const rest = cur.slice(m[0].length);
+    if (!rest.trim() && sel.start === sel.end) {   // empty item: clear the marker
+      setText(text.slice(0, a) + text.slice(sel.start), a);
+      return;
+    }
+    let pre;
+    if (m[6]) pre = m[1] + '> ';
+    else if (m[2]) pre = m[1] + m[2] + ' ' + (m[3] ? '[ ] ' : '');
+    else pre = m[1] + (parseInt(m[4], 10) + 1) + m[5] + ' ';
+    setText(text.slice(0, sel.start) + '\n' + pre + text.slice(sel.end), sel.start + 1 + pre.length);
+    return;
+  }
+  setText(text.slice(0, sel.start) + '\n' + text.slice(sel.end), sel.start + 1);
+}
+
+function indent(out) {
+  const sel = selRange(); if (!sel) return;
+  const [a, b] = lineBounds(sel.start);
+  const line = text.slice(a, b);
+  const isList = /^\s*(?:[-*+]|\d+[.)])\s/.test(line);
+  if (!isList && !out && sel.start === sel.end) { insert('  ', sel); return; }
+  if (out) {
+    const n = /^ {1,2}/.exec(line);
+    if (!n) return;
+    setText(text.slice(0, a) + line.slice(n[0].length) + text.slice(b), Math.max(a, sel.start - n[0].length));
+  } else {
+    setText(text.slice(0, a) + '  ' + line + text.slice(b), sel.start + 2);
+  }
+}
+
+/* ── events ───────────────────────────────────────────────────────────── */
+editor.addEventListener('beforeinput', e => {
+  if (e.inputType === 'historyUndo') { e.preventDefault(); undo(); }
+  else if (e.inputType === 'historyRedo') { e.preventDefault(); redo(); }
+  else if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') {
+    e.preventDefault(); handleEnter();
+  }
+});
+editor.addEventListener('input', sync);
+editor.addEventListener('compositionstart', () => composing = true);
+editor.addEventListener('compositionend', () => { composing = false; sync(); });
+editor.addEventListener('paste', e => {
+  e.preventDefault();
+  const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+  if (t) insert(t.replace(/\r\n?/g, '\n'));
+});
+document.addEventListener('selectionchange', () => {
+  if (document.activeElement === editor) updateActive();
+});
+editor.addEventListener('click', e => {
+  const li = e.target.closest && e.target.closest('.task');
+  if (!li) return;
+  if (e.clientX > li.getBoundingClientRect().left) return;   // only the checkbox gutter
+  const i = [...editor.children].indexOf(li);
+  const lens = text.split('\n').map(l => l.length);
+  let pos = 0; for (let j = 0; j < i; j++) pos += lens[j] + 1;
+  const [a, b] = lineBounds(pos);
+  const line = text.slice(a, b);
+  setText(text.slice(0, a) + line.replace(/\[([ xX])\]/, (_, c) => c === ' ' ? '[x]' : '[ ]') + text.slice(b), pos);
+});
+
+const mod = e => e.metaKey || e.ctrlKey;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { $('#help').classList.remove('show'); return; }
+  if (!mod(e)) {
+    if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); indent(e.shiftKey); }
+    return;
+  }
+  const k = e.key.toLowerCase();
+  if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (k === 'y') { e.preventDefault(); redo(); return; }
+  if (k === 's') { e.preventDefault(); saveMd(); return; }
+  if (k === 'o') { e.preventDefault(); $('#picker').click(); return; }
+  if (k === '\\') { e.preventDefault(); toggle('outline', $('#bOutline')); buildOutline(); return; }
+  if (k === '/') { e.preventDefault(); $('#help').classList.toggle('show'); return; }
+  if (k === 'e' && e.shiftKey) { e.preventDefault(); exportHtml(); return; }
+  if (k === 'f' && e.shiftKey) { e.preventDefault(); toggle('focus', $('#bFocus')); updateActive(); return; }
+  if (k === 't' && e.shiftKey) { e.preventDefault(); toggle('typewriter', $('#bType')); updateActive(); return; }
+  if (k === 'd' && e.shiftKey) { e.preventDefault(); theme(); return; }
+  if (k === 'r' && e.shiftKey) { e.preventDefault(); document.documentElement.classList.toggle('reveal'); return; }
+  if (document.activeElement !== editor) return;
+  if (k === 'b') { e.preventDefault(); wrapSel('**'); return; }
+  if (k === 'i') { e.preventDefault(); wrapSel('*'); return; }
+  if (k === 'k' && e.shiftKey) { e.preventDefault(); wrapSel('`'); return; }
+  if (k === 'k') {
+    e.preventDefault();
+    const sel = selRange(); if (!sel) return;
+    const inner = text.slice(sel.start, sel.end) || 'text';
+    const out = text.slice(0, sel.start) + '[' + inner + '](url)' + text.slice(sel.end);
+    setText(out, sel.start + inner.length + 3, sel.start + inner.length + 6);
+    return;
+  }
+  if (/^[0-6]$/.test(e.key)) { e.preventDefault(); heading(+e.key); return; }
+});
+
+/* ── chrome behaviour ─────────────────────────────────────────────────── */
+addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY < 70));
+$('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
+function toggle(cls, btn) {
+  const on = document.body.classList.toggle(cls);
+  btn.setAttribute('aria-pressed', on);
+  if (cls !== 'focus') return;
+  if (!on) for (const el of editor.children) el.classList.remove('near');
+}
+$('#bOutline').onclick = () => { toggle('outline', $('#bOutline')); buildOutline(); };
+$('#bFocus').onclick = () => { toggle('focus', $('#bFocus')); updateActive(); };
+$('#bType').onclick = () => { toggle('typewriter', $('#bType')); updateActive(); };
+$('#bPages').onclick = () => toggle('pagebreak', $('#bPages'));
+
+/* @page can't be switched with a class, so its rule is rewritten in place. */
+const MARGINS = [['wide', '2.5cm'], ['narrow', '1.2cm'], ['none', '0']];
+let mgi = 0;
+const pageStyle = document.head.appendChild(document.createElement('style'));
+function applyMargin() {
+  pageStyle.textContent = '@page{margin:' + MARGINS[mgi][1] + '}';
+  $('#bMargin').textContent = 'Margin: ' + MARGINS[mgi][0];
+  document.body.classList.toggle('nomargin', mgi === 2);
+}
+$('#bMargin').onclick = () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); };
+applyMargin();
+
+const widths = ['30em', '34em', '40em', '48em'];
+let wi = 1;
+$('#bWide').onclick = () => {
+  wi = (wi + 1) % widths.length;
+  document.documentElement.style.setProperty('--measure', widths[wi]);
+};
+const fonts = [['Serif', 'var(--serif)'], ['Sans', 'var(--sans)'], ['Mono', 'var(--mono)']];
+let fi = 0;
+$('#bFont').onclick = () => {
+  fi = (fi + 1) % fonts.length;
+  document.documentElement.style.setProperty('--body', fonts[fi][1]);
+  $('#bFont').textContent = fonts[fi][0];
+};
+function theme() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'ink';
+  document.documentElement.setAttribute('data-theme', dark ? 'paper' : 'ink');
+  $('#bTheme').textContent = dark ? 'Dark' : 'Light';
+  initMermaid();
+  if (window.mermaid) { for (const el of editor.querySelectorAll('.prev')) delete el.dataset.src; renderPreviews(true); }
+}
+$('#bTheme').onclick = theme;
+$('#bHelp').onclick = () => $('#help').classList.toggle('show');
+$('#help').onclick = e => { if (e.target.id === 'help') $('#help').classList.remove('show'); };
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+/* ── files ────────────────────────────────────────────────────────────── */
+const fileName = () => ($('#name').value || 'untitled').replace(/\.md$/i, '');
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+let handle = null;
+async function saveMd() {
+  const data = text;
+  try {
+    if (handle) {
+      const w = await handle.createWritable(); await w.write(data); await w.close();
+      toast('Saved to ' + handle.name); return;
+    }
+    if (window.showSaveFilePicker) {
+      handle = await showSaveFilePicker({
+        suggestedName: fileName() + '.md',
+        types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }]
+      });
+      const w = await handle.createWritable(); await w.write(data); await w.close();
+      $('#name').value = handle.name; toast('Saved to ' + handle.name); return;
+    }
+  } catch (err) { if (err && err.name === 'AbortError') return; }
+  download(new Blob([data], { type: 'text/markdown' }), fileName() + '.md');
+  toast('Downloaded ' + fileName() + '.md');
+}
+$('#bSave').onclick = saveMd;
+$('#bOpen').onclick = () => $('#picker').click();
+$('#picker').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => {
+    handle = null;
+    $('#name').value = f.name;
+    setText(t.replace(/\r\n?/g, '\n'), 0);
+    editor.focus(); wrap.scrollTop = 0;
+  });
+  e.target.value = '';
+};
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f && /\.(md|markdown|mdown|txt)$/i.test(f.name))
+    f.text().then(t => { handle = null; $('#name').value = f.name; setText(t.replace(/\r\n?/g, '\n'), 0); });
+});
+
+/* ── export ─────────────────────────────────────────────────────────── */
+/* ── export renderer (GFM) ───────────────────────────────────────────── */
+function nestList(items) {
+  const root = { children: [] }, stack = [{ ind: -1, node: root }];
+  for (const it of items) {
+    while (stack.length > 1 && it.ind <= stack[stack.length - 1].ind) stack.pop();
+    const node = Object.assign({ children: [] }, it);
+    stack[stack.length - 1].node.children.push(node);
+    stack.push({ ind: it.ind, node });
+  }
+  return root.children;
+}
+function listHtml(nodes) {
+  let html = '', run = [];
+  const flush = () => {
+    if (!run.length) return;
+    const ord = run[0].ord;
+    const start = ord && +run[0].num !== 1 ? ` start="${+run[0].num}"` : '';
+    html += `<${ord ? 'ol' : 'ul'}${start}${run.some(n => n.task != null) ? ' class="task-list"' : ''}>`
+         + run.map(n => {
+             let inner = (n.task != null ? `<input type="checkbox" disabled${n.task ? ' checked' : ''}> ` : '')
+                       + inline(n.text, true);
+             if (n.children.length) inner += listHtml(n.children);
+             return `<li>${inner}</li>`;
+           }).join('')
+         + `</${ord ? 'ol' : 'ul'}>`;
+    run = [];
+  };
+  for (const n of nodes) { if (run.length && run[0].ord !== n.ord) flush(); run.push(n); }
+  flush();
+  return html;
+}
+
+function mdToHtml(src, top) {
+  const lines = src.split('\n');
+  const out = [];
+  let i = 0, para = [];
+  const flush = () => {
+    if (!para.length) return;
+    let h = '';
+    for (let n = 0; n < para.length; n++) {
+      if (n) h += /(\s{2,}|\\)$/.test(para[n - 1]) ? '<br>\n' : ' ';
+      h += inline(para[n].trim().replace(/\\$/, ''), true);
+    }
+    out.push('<p>' + h + '</p>');
+    para = [];
+  };
+
+  while (i < lines.length) {
+    const l = lines[i];
+    let m;
+
+    if ((m = /^\s*(```+|~~~+)(.*)$/.exec(l))) {
+      flush(); const close = m[1][0]; i++;
+      const buf = [];
+      while (i < lines.length && !new RegExp('^\\s*' + close + '{3,}\\s*$').test(lines[i])) buf.push(lines[i++]);
+      i++;
+      out.push(m[2].trim().toLowerCase() === 'mermaid'
+        ? '<pre class="mermaid">' + esc(buf.join('\n')) + '</pre>'
+        : `<pre><code${m[2].trim() ? ' class="language-' + att(m[2].trim()) + '"' : ''}>` + esc(buf.join('\n')) + '</code></pre>');
+      continue; }
+
+    if (/^\s*\$\$\s*$/.test(l)) {
+      flush(); i++;
+      const buf = [];
+      while (i < lines.length && !/^\s*\$\$\s*$/.test(lines[i])) buf.push(lines[i++]);
+      i++;
+      out.push('<div class="mathblock">' + mathHtml(buf.join('\n'), true) + '</div>');
+      continue; }
+
+    if (!l.trim()) { flush(); i++; continue; }
+
+    if (/^\s{0,3}\[\^([^\]\s]+)\]:/.test(l) || /^\s{0,3}\[([^\]^]+)\]:\s*\S+/.test(l)) { flush(); i++; continue; }
+
+    if ((m = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l))) {
+      flush(); out.push(`<h${m[1].length}>` + inline(m[2], true) + `</h${m[1].length}>`); i++; continue; }
+
+    if (i + 1 < lines.length && l.trim() && /^\s{0,3}(=+|-+)\s*$/.test(lines[i + 1])
+        && !/^\s*[-*+>#]/.test(l) && !/\|/.test(l) && !para.length) {
+      const lvl = lines[i + 1].trim()[0] === '=' ? 1 : 2;
+      out.push(`<h${lvl}>` + inline(l.trim(), true) + `</h${lvl}>`); i += 2; continue; }
+
+    if (/^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(l)) { flush(); out.push('<hr>'); i++; continue; }
+
+    if (isTableStart(lines, i)) {
+      flush(); const end = tableEnd(lines, i);
+      out.push(tableHtml(lines.slice(i, end + 1))); i = end + 1; continue; }
+
+    if (/^\s*>/.test(l)) {
+      flush(); const buf = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, ''));
+      const alert = /^\[!(\w+)\]\s*$/.exec(buf[0] || '');
+      if (alert && ALERTS.includes(alert[1].toUpperCase())) {
+        const kind = alert[1].toUpperCase();
+        out.push(`<blockquote class="alert a-${kind.toLowerCase()}"><p class="alert-label">${kind[0] + kind.slice(1).toLowerCase()}</p>`
+                 + mdToHtml(buf.slice(1).join('\n')) + '</blockquote>');
+      } else out.push('<blockquote>' + mdToHtml(buf.join('\n')) + '</blockquote>');
+      continue; }
+
+    if (/^ {4,}\S/.test(l) && !para.length && !/<\/(ul|ol)>$/.test(out[out.length - 1] || '')) {
+      flush(); const buf = [];
+      while (i < lines.length && (/^ {4,}/.test(lines[i]) || !lines[i].trim())) {
+        if (!lines[i].trim() && !/^ {4,}/.test(lines[i + 1] || '')) break;
+        buf.push(lines[i++].replace(/^ {4}/, ''));
+      }
+      out.push('<pre><code>' + esc(buf.join('\n')) + '</code></pre>'); continue; }
+
+    if (/^\s*(?:[-*+]|\d+[.)])\s+/.test(l)) {
+      flush(); const items = [];
+      while (i < lines.length && /^\s*(?:[-*+]|\d+[.)])\s+/.test(lines[i])) {
+        const mm = /^(\s*)(?:([-*+])|(\d+)[.)])\s+(.*)$/.exec(lines[i++]);
+        let text = mm[4], task = null;
+        const tk = /^\[([ xX])\]\s+/.exec(text);
+        if (tk) { task = tk[1] !== ' '; text = text.slice(tk[0].length); }
+        while (i < lines.length && lines[i].trim() && !/^\s*(?:[-*+]|\d+[.)])\s+/.test(lines[i])
+               && /^\s{2,}/.test(lines[i])) text += ' ' + lines[i++].trim();
+        items.push({ ind: mm[1].length, ord: !mm[2], num: mm[3], task, text });
+      }
+      out.push(listHtml(nestList(items))); continue; }
+
+    if (/^\s*<\/?[a-zA-Z][^>]*>/.test(l)) {
+      flush(); const buf = [];
+      while (i < lines.length && lines[i].trim()) buf.push(lines[i++]);
+      out.push(buf.join('\n')); continue; }
+
+    para.push(l); i++;
+  }
+  flush();
+
+  if (top && fnDefs.length) {
+    out.push('<hr class="fn-rule"><ol class="footnotes">' + fnDefs.map(d =>
+      `<li id="fn-${att(d.id)}">${inline(d.text, true)} <a href="#fnref-${att(d.id)}" class="fn-back">&#8617;</a></li>`).join('') + '</ol>');
+  }
+  return out.join('\n');
+}
+
+function exportHtml() {
+  const title = fileName();
+  const pages = document.body.classList.contains('pagebreak');
+  const hasMath = /\$[^$\n]+\$/.test(text);
+  const hasMermaid = /```\s*mermaid/i.test(text);
+  const head =
+    (hasMath ? `<link rel="stylesheet" href="${KATEX_CSS}" crossorigin="anonymous">\n` : '') +
+    (hasMermaid ? `<script type="module">import m from '${MERMAID_ESM}';m.initialize({startOnLoad:true,theme:'neutral'});<\/script>\n` : '');
+  const doc = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${att(title)}</title>
+${head}<style>
+body{max-width:34em;margin:6vh auto;padding:0 24px;
+ font:19px/1.72 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+ color:#22262a;background:#eef0ec}
+h1,h2,h3,h4{line-height:1.28;letter-spacing:-.015em;margin:1.6em 0 .3em}
+h1{font-size:1.85em}h2{font-size:1.45em}h3{font-size:1.2em}
+a{color:#4a7d6f}
+blockquote{border-left:2px solid #4a7d6f;margin:1em 0;padding-left:1em;color:#565d63;font-style:italic}
+pre{background:#e3e7e2;padding:1em;border-radius:7px;overflow:auto}
+code{font:.86em ui-monospace,Menlo,Consolas,monospace;background:#e3e7e2;padding:.1em .32em;border-radius:4px}
+pre code{background:none;padding:0}
+img{max-width:100%;border-radius:6px}
+table{border-collapse:collapse;width:100%;table-layout:auto;font-size:.92em}
+th,td{white-space:normal;overflow-wrap:anywhere;hyphens:auto}
+th,td{border:1px solid #cfd4ce;padding:.45em .7em;text-align:left}
+thead th{background:#e4e7e2}
+tbody tr:nth-child(even){background:#e9ece7}
+table{font-family:ui-sans-serif,-apple-system,'Segoe UI',sans-serif;font-size:.86em}
+ul.task-list{list-style:none;padding-left:1.2em}
+blockquote.alert{font-style:normal}
+.alert-label{font-weight:600;margin:0 0 .3em}
+.a-note{border-left-color:#4a7d9e}.a-note .alert-label{color:#4a7d9e}
+.a-tip{border-left-color:#4a7d6f}.a-tip .alert-label{color:#4a7d6f}
+.a-important{border-left-color:#7a5aa0}.a-important .alert-label{color:#7a5aa0}
+.a-warning{border-left-color:#b08b3a}.a-warning .alert-label{color:#b08b3a}
+.a-caution{border-left-color:#b4544a}.a-caution .alert-label{color:#b4544a}
+.footnotes{font-size:.88em;color:#565d63}
+.fn-rule{margin-top:3em}
+sup a{text-decoration:none}
+hr{border:0;border-top:1px solid #cfd4ce;margin:2em 0}
+mark{background:#d9e6a8}
+.mathblock{margin:1.2em 0;overflow-x:auto}
+pre.mermaid{background:none;text-align:center}
+@page{margin:${MARGINS[mgi][1]}}
+@media print{
+ body{background:#fff;margin:0;padding:${mgi === 2 ? '0 4mm' : '0'};max-width:none}
+ table,pre,.mathblock{break-inside:avoid}
+ h1,h2,h3,h4{break-after:avoid}
+ p{orphans:3;widows:3}
+${pages ? ' h1,h2{break-before:page}\n h1:first-child,h2:first-child{break-before:auto}\n' : ''}}
+</style></head><body>
+${mdToHtml(text, true)}
+</body></html>`;
+  download(new Blob([doc], { type: 'text/html' }), title + '.html');
+  toast('Exported ' + title + '.html');
+}
+$('#bHtml').onclick = exportHtml;
+$('#name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); editor.focus(); } });
+
+/* ── draft persistence ────────────────────────────────────────────────── */
+const KEY = 'sumi:draft';
+async function store() {
+  const payload = JSON.stringify({ name: $('#name').value, text });
+  try {
+    if (window.storage) { await window.storage.set(KEY, payload); return; }
+    localStorage.setItem(KEY, payload);
+  } catch (e) { /* running somewhere without storage: drafts stay in memory */ }
+}
+async function load() {
+  try {
+    if (window.storage) { const r = await window.storage.get(KEY); return r ? JSON.parse(r.value) : null; }
+    const raw = localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+const WELCOME = `# Sumi
+
+A markdown editor that shows you the finished page while you write it. The
+document is always plain markdown underneath — the syntax just steps out of
+the way unless your caret is on the line.
+
+Put your caret anywhere in this **bold** sentence and the asterisks come back.
+Move away and they fold up again. Same for *emphasis*, \`inline code\`, ~~cuts~~,
+==highlights==, and [links](https://daringfireball.net/projects/markdown/).
+
+## What's here
+
+- GitHub Flavored Markdown: tables, task lists, footnotes, alerts, autolinks
+- Focus mode, typewriter scrolling, an outline drawer
+- LaTeX and Mermaid, folded the same way as everything else
+- Export to markdown or a clean standalone HTML page
+- Print to PDF with the syntax hidden
+
+1. Type \`- \` and press Enter to keep a list going
+2. Press Enter twice to stop
+3. Press Tab to nest
+
+- [x] Handle task lists
+- [ ] Click the circle in the margin to tick one off
+
+Tables fold like everything else — click into one to get the source back, with
+alignment set by the colons in the divider row:
+
+| Block        | Editing          | Alignment |
+|:-------------|:-----------------|----------:|
+| Table        | folds to a grid  |     right |
+| Mermaid      | folds to a chart |    center |
+| Maths block  | folds to maths   |      left |
+
+> A quote keeps its rule in the margin.
+
+> [!NOTE]
+> GitHub's alert blocks work too — NOTE, TIP, IMPORTANT, WARNING, CAUTION.
+
+Footnotes[^why] and [reference links][gfm] resolve against definitions further
+down the file. Bare URLs like https://commonmark.org link themselves.
+
+[^why]: Definitions can live anywhere; they're numbered in the order defined.
+[gfm]: https://github.github.com/gfm/ "GitHub Flavored Markdown Spec"
+
+\`\`\`python
+def render(line, active):
+    return line if active else fold(line)
+\`\`\`
+
+Inline maths sits in the sentence, like \$e^{i\\pi} + 1 = 0\$, and a block of it
+gets its own line:
+
+\$\$
+\\int_0^\\infty x^{2}e^{-x}\\,dx = 2
+\$\$
+
+Diagrams work the same way — click into the source to edit it, click away and
+the drawing takes over:
+
+\`\`\`mermaid
+flowchart LR
+  A[raw markdown] --> B{caret on this line?}
+  B -->|yes| C[show the syntax]
+  B -->|no| D[fold it away]
+\`\`\`
+
+---
+
+Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to open it.
+`;
+
+(async () => {
+  const saved = await load();
+  if (saved && saved.text) { $('#name').value = saved.name || 'untitled.md'; setText(saved.text, 0, 0, false); }
+  else setText(WELCOME, 0, 0, false);
+  record(text, { start: 0, end: 0 });
+  editor.focus(); setSel(0);
+  updateActive();
+  $('#bar').classList.add('show');
+  setTimeout(() => $('#bar').classList.remove('show'), 2200);
+})();
+
+/* ── lazy dependencies ────────────────────────────────────────────────
+   Everything above works offline. These two only add math and diagrams,
+   and their absence degrades to plain source text. */
+const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/';
+const KATEX_CSS = CDN + 'KaTeX/0.17.0/katex.min.css';
+const MERMAID_ESM = 'https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs';
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.crossOrigin = 'anonymous';
+    el.onload = res; el.onerror = () => rej(new Error(src));
+    document.head.appendChild(el);
+  });
+}
+function initMermaid() {
+  if (!window.mermaid) return;
+  const dark = document.documentElement.getAttribute('data-theme') === 'ink';
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'neutral',
+    fontFamily: getComputedStyle(document.body).getPropertyValue('--sans') });
+}
+loadScript(CDN + 'KaTeX/0.17.0/katex.min.js').then(forceRender).catch(() => {});
+loadScript(CDN + 'mermaid/11.15.0/mermaid.min.js')
+  .then(() => window.mermaid ? null : import(MERMAID_ESM).then(m => { window.mermaid = m.default; }))
+  .then(() => { initMermaid(); forceRender(); })
+  .catch(() => {});
+
+addEventListener('beforeunload', () => { try { store(); } catch (e) {} });
+})();
+</script>
+</body>
+</html>
