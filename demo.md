@@ -25,10 +25,9 @@ The line above is `[TOC]`, a table of contents built from the headings. With hea
 ###### Sixth level
 
 Setext heading
-==============
-
-Second setext heading
 ---------------------
+
+That one is underlined with dashes, which makes an `##`. Underlining with `=` makes a `#`, and a second `#` in a document turns heading numbering back on for the title.
 
 ## Paragraphs and inline styles
 

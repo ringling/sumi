@@ -45,11 +45,12 @@ const lineText=i=>$$('#editor .line')[i].textContent;
   ok(/counter\(code\)/.test(w.getComputedStyle(code[0],'::before').content)&&w.getComputedStyle(code[0],'::before').position==='absolute','code lines get a counter ::before (value checked in the screenshot)');
   ok(code[0].textContent==='const a = 1;','numbering adds no text to the line');
   nums('hnums');
-  ok(w.getComputedStyle(L[6],'::before').content==='none','lone h1 is the title: no number');
-  ok(w.getComputedStyle(L[10],'::before').content==='counter(h2) ". "','h2 numbered from h2: '+w.getComputedStyle(L[10],'::before').content);
-  ok(w.getComputedStyle(L[8],'::before').content==='none','paragraph gets no counter');
+  ok(!L[6].querySelector('.hn'),'lone h1 is the title: no number');
+  ok(L[10].querySelector('.hn')&&L[10].querySelector('.hn').textContent==='1. '&&w.getComputedStyle(L[10].querySelector('.hn')).display==='inline','h2 numbered 1. after the marker: '+JSON.stringify(L[10].querySelector('.hn')&&L[10].querySelector('.hn').textContent));
+  ok(L[10].querySelector('.tok').nextSibling===L[10].querySelector('.hn')&&L[10].querySelector('.hn').hasAttribute('data-x'),'number sits after the marker and is data-x');
+  ok(!L[8].querySelector('.hn'),'paragraph gets no number');
   caretIn(13,0); d.execCommand('insertText',false,'# Second top\n\n'); await sleep(200);
-  ok(!d.body.classList.contains('hfrom2')&&w.getComputedStyle($$('#editor .line')[6],'::before').content==='counter(h1) ". "'&&w.getComputedStyle($$('#editor .line')[10],'::before').content==='counter(h1) "." counter(h2) " "','two h1s: numbering from h1 again, 1. and 1.1');
+  ok(!d.body.classList.contains('hfrom2')&&$$('#editor .line')[6].querySelector('.hn').textContent==='1. '&&$$('#editor .line')[10].querySelector('.hn').textContent==='1.1 ','two h1s: numbering from h1 again, 1. and 1.1');
   for(let i=0;i<8&&$$('#editor .line').length!==src.length;i++){ key('z',{metaKey:true}); await sleep(120); }
   ok($$('#editor .line').length===src.length&&d.body.classList.contains('hfrom2'),'undo back to one h1: from h2 again');
   nums('eqnos');

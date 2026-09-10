@@ -24,7 +24,7 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
   const has=(cls,n=1)=>$$('#editor .line.'+cls).length>=n;
   const kinds={fm:'front matter',toc:'[TOC]',h1:'h1',h2:'h2',h3:'h3',h4:'h4',h5:'h5',h6:'h6',setext:'setext underline',hr:'rules',quote:'quotes','a-note':'NOTE','a-tip':'TIP','a-important':'IMPORTANT','a-warning':'WARNING','a-caution':'CAUTION',ul:'bullets',ol:'numbers',task:'tasks','fence.open':'fences',code:'code lines',trow:'table rows',mathblk:'maths blocks',rawhtml:'raw html',refdef:'definitions'};
   for(const [c,name] of Object.entries(kinds)) ok(has(c),'block: '+name);
-  ok($$('#editor .line.h.h1').length===2,'ATX and setext h1 both present');
+  ok($$('#editor .line.h.h1').length===1&&$$('#editor .line.setext').length>=1,'one h1 plus a setext h2');
   ok(!!$('#editor .fmcard')&&!!$('#editor ul.toc')&&$$('#editor ul.toc li').length>=15,'front matter card and TOC preview');
   ok($$('#editor .line.hr').length===3,'three rules');
   const inl={'strong':'bold','em':'italic','del':'strikethrough','mark':'highlight','code':'code span','a[href^="https://"]':'links','a[href^="#"]':'internal links','sup.fn':'footnote refs','.kx':'inline maths','img.mdimg':'image'};
@@ -45,7 +45,7 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
   mclick('bFile','[data-act=html]'); await sleep(200); const html=await blob.text();
-  const exp={'<h1 id="sumi-feature-demo">':'h1 with id','<h6':'h6','<ul class="toc">':'toc','<table>':'table','<pre><code class="language-js">':'js fence','<pre><code>':'plain fence','<blockquote class="alert a-caution">':'caution alert','<ol class="footnotes">':'footnotes','class="mathblock"':'maths block','<pre class="mermaid">':'mermaid','<details>':'raw html passthrough','<hr>':'rule','<mark>':'highlight','<del>':'strike','<img':'image','<br>':'hard break','<ul class="task-list">':'task list','<h1 id="setext-heading">':'setext heading id'};
+  const exp={'<h1 id="sumi-feature-demo">':'h1 with id','<h6':'h6','<ul class="toc">':'toc','<table>':'table','<pre><code class="language-js">':'js fence','<pre><code>':'plain fence','<blockquote class="alert a-caution">':'caution alert','<ol class="footnotes">':'footnotes','class="mathblock"':'maths block','<pre class="mermaid">':'mermaid','<details>':'raw html passthrough','<hr>':'rule','<mark>':'highlight','<del>':'strike','<img':'image','<br>':'hard break','<ul class="task-list">':'task list','<h2 id="setext-heading">':'setext heading id'};
   for(const [needle,name] of Object.entries(exp)) ok(html.includes(needle),'export: '+name);
   ok(!/title: Sumi feature demo/.test(html),'export drops front matter');
   ok(!/\[\^one\]/.test(html)&&/id="fn-one"/.test(html),'export resolves footnotes');

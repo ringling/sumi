@@ -34,6 +34,8 @@ try {
     for (const t of JSON.parse(q.result.value)) {
       for (const ch of t) {
         if (ch === '\n') { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); continue; }
+        const arrows = { '\u2190': ['ArrowLeft', 37], '\u2192': ['ArrowRight', 39], '\u2191': ['ArrowUp', 38], '\u2193': ['ArrowDown', 40] };
+        if (arrows[ch]) { const [k, vk] = arrows[ch]; await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code: k, windowsVirtualKeyCode: vk }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code: k, windowsVirtualKeyCode: vk }); continue; }
         if (ch === '\b') { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }); continue; }
         await send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch, unmodifiedText: ch });
         await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch });

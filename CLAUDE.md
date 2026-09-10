@@ -127,9 +127,11 @@ over `headings`; the preview key is the headings list plus the from-h2 flag, so
 it follows edits and the numbering toggles. Entries carry the heading number in
 a `.tn` span shown only under `body.hnums`; `tocHtml()` counts exactly as the
 CSS counters do, including `body.hfrom2`, so list and page always agree.
-`render()` sets `body.hfrom2` whenever the document has exactly one h1: that
-h1 is the title, unnumbered, and h2 is the top level (1., 2., 3.1). With zero
-or several h1s numbering starts at h1. There is no manual switch. In the editor each entry carries
+`render()` sets `body.hfrom2` whenever the document has exactly one h1 (for
+the export's counters); the editor and the TOC use `num` from `scan()`, which
+applies the same rule: a lone h1 is unnumbered and h2 is the top level (1.,
+2., 3.1); with zero or several h1s numbering starts at h1. No manual switch.
+A setext `===` heading is an h1 too. In the editor each entry carries
 `data-line`, and a click on any `a[href^="#"]`
 inside the editor is intercepted: TOC entries jump by line, text links by slug
 lookup, both through `jumpToLine()` which the outline drawer uses too.
@@ -206,15 +208,18 @@ the syntax visible.
 
 ## Numbering and other class toggles
 
-Code line numbers, heading numbers and equation numbers are body classes
-(`linenos`, `hnums`, `eqnos`) driven purely by CSS counters and `::before`,
-so they add nothing to the DOM and need no re-render. The equation label is a
-real `<span class="eqno">` inside the `data-x` preview, numbered by `f.eq`
-from `scan()`, and only shown by the class. Chrome does not resolve
-`counter()` in `getComputedStyle`, so the harness checks the rule exists and
-the screenshot checks the value. Export mirrors all three with the same
-counters on `<pre class="linenos">` (one `<span class="ln">` per line, cut
-with `hlSplit`), `body.hnums` and `body.eqnos`.
+Code line numbers are CSS counters on `::before` (nothing in the DOM).
+Heading numbers are computed at the end of `scan()` into `f.num` and
+`headings[i].num` (a lone h1 is the title and unnumbered; otherwise from h1)
+and rendered as a `data-x` span after the marker, so an active line reads
+`# 1.2 Title`, not `1.2 # Title` as a pseudo-element gave; `body.hnums`
+only shows or hides it, and the TOC reads the same `num`. The equation label
+is a `<span class="eqno">` inside the `data-x` preview, numbered by `f.eq`.
+Export mirrors all three with CSS counters on `<pre class="linenos">` (one
+`<span class="ln">` per line, cut with `hlSplit`), `body.hnums` (plus
+`body.hfrom2`) and `body.eqnos`. Chrome does not resolve `counter()` in
+`getComputedStyle`, so the line-number harness checks the rule and the
+screenshot checks the value.
 
 ## Emoji shortcodes
 

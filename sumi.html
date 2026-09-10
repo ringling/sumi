@@ -399,10 +399,10 @@ mark{background:var(--mark); color:inherit; padding:.05em .15em; border-radius:3
   body.source .line{padding-left:0}
   body.source .line.fold{min-height:calc(1em * var(--lh))}
   body.source .line.fold .src{display:inline}
-  body.source .prev,body.source .kx,body.source .fn,body.source .alabel,body.source .rule,body.source .emo,
+  body.source .prev,body.source .kx,body.source .fn,body.source .alabel,body.source .rule,body.source .emo,body.source .hn,
   body.source .mdimg,body.source .eqno{display:none!important}
   body.source .h{font-family:inherit; font-size:inherit; margin:0; letter-spacing:0; line-height:inherit; color:inherit}
-  body.source .h::before,body.source .ul::before,body.source .task::before,body.source .line.code::before{content:none}
+  body.source .ul::before,body.source .task::before,body.source .line.code::before{content:none}
   body.source .quote{border:0; padding-left:0; font-style:normal; color:inherit}
   body.source .code,body.source .fence,body.source .mathblk,body.source .fm,body.source .trow{
     background:none; padding:0; margin:0; font-size:inherit; line-height:inherit; min-height:auto; border-radius:0}
@@ -422,29 +422,8 @@ body.linenos .line.code:not(.fold)::before{
   position:absolute; left:0; width:2.6em; text-align:right;
   color:var(--ink-faint); font-size:.85em;
 }
-body.hnums #editor{counter-reset:h1 h2 h3 h4 h5 h6}
-body.hnums .line.h1{counter-increment:h1; counter-reset:h2 h3 h4 h5 h6}
-body.hnums .line.h2{counter-increment:h2; counter-reset:h3 h4 h5 h6}
-body.hnums .line.h3{counter-increment:h3; counter-reset:h4 h5 h6}
-body.hnums .line.h4{counter-increment:h4; counter-reset:h5 h6}
-body.hnums .line.h5{counter-increment:h5; counter-reset:h6}
-body.hnums .line.h6{counter-increment:h6}
-body.hnums .line.h1::before{content:counter(h1) '. '}
-body.hnums .line.h2::before{content:counter(h1) '.' counter(h2) ' '}
-body.hnums .line.h3::before{content:counter(h1) '.' counter(h2) '.' counter(h3) ' '}
-body.hnums .line.h4::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) ' '}
-body.hnums .line.h5::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
-body.hnums .line.h6::before{content:counter(h1) '.' counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
-body.hnums .h::before{color:var(--ink-soft)}
-/* body.hfrom2 is set by render() when the document has exactly one h1: that
-   h1 is the title, unnumbered, and h2 is the top level */
-body.hnums.hfrom2 .line.h1{counter-increment:none; counter-reset:none}
-body.hnums.hfrom2 .line.h1::before{content:none}
-body.hnums.hfrom2 .line.h2::before{content:counter(h2) '. '}
-body.hnums.hfrom2 .line.h3::before{content:counter(h2) '.' counter(h3) ' '}
-body.hnums.hfrom2 .line.h4::before{content:counter(h2) '.' counter(h3) '.' counter(h4) ' '}
-body.hnums.hfrom2 .line.h5::before{content:counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) ' '}
-body.hnums.hfrom2 .line.h6::before{content:counter(h2) '.' counter(h3) '.' counter(h4) '.' counter(h5) '.' counter(h6) ' '}
+.hn{display:none; color:var(--ink-soft); font-weight:inherit}
+body.hnums .hn{display:inline}
 .prev{position:relative}
 .eqno{display:none; position:absolute; right:0; top:50%; transform:translateY(-50%);
   font-family:var(--sans); font-size:.85em; color:var(--ink-soft)}
@@ -644,13 +623,8 @@ function slugify(t, seen) {
 function tocHtml(items, clean) {
   if (!items.length) return '<ul class="toc"><li class="empty">Table of contents — headings appear here</li></ul>';
   const min = Math.min(...items.map(h => h.level));
-  const c = [0, 0, 0, 0, 0, 0, 0], from = document.body.classList.contains('hfrom2') ? 2 : 1;
   return '<ul class="toc">' + items.map(h => {
-    let num = '';
-    if (h.level >= from) {
-      c[h.level]++; for (let k = h.level + 1; k <= 6; k++) c[k] = 0;
-      num = h.level === from ? c[from] + '.' : c.slice(from, h.level + 1).join('.');
-    }
+    const num = h.num || '';
     return `<li style="--d:${h.level - min + 1}"><a href="#${att(h.slug)}"${clean ? '' : ` data-line="${h.i}"`}>${num ? `<span class="tn">${num} </span>` : ''}${esc(plainText(h.text))}</a></li>`;
   }).join('') + '</ul>';
 }
@@ -1020,6 +994,17 @@ function scan(lines) {
     out.push(f);
   }
   if (inCode && codeLang) hlRun(out, lines, codeFrom, lines.length, codeLang);
+  /* heading numbers: a lone h1 is the title (unnumbered, sections from h2); the
+     TOC and the editor both read h.num, so they cannot disagree */
+  const from = headings.filter(h => h.level === 1).length === 1 ? 2 : 1, c = [0, 0, 0, 0, 0, 0, 0];
+  for (const h of headings) {
+    let num = '';
+    if (h.level >= from) {
+      c[h.level]++; for (let k = h.level + 1; k <= 6; k++) c[k] = 0;
+      num = h.level === from ? c[from] + '.' : c.slice(from, h.level + 1).join('.');
+    }
+    h.num = num; out[h.i].num = num; out[h.i].k = JSON.stringify(out[h.i]);
+  }
   blkCount = blk;
   return out;
 }
@@ -1119,7 +1104,7 @@ function coreLine(s, f) {
     case 'icode':
     case 'html':  return esc(s);
     case 'hr':    return `<span class="tok">${esc(s)}</span><span class="rule"></span>`;
-    case 'h':     return (f.marker ? `<span class="tok">${esc(f.marker)}</span>` : '') + inline(f.text);
+    case 'h':     return (f.marker ? `<span class="tok">${esc(f.marker)}</span>` : '') + (f.num ? `<span class="hn" data-x>${f.num} </span>` : '') + inline(f.text);
     case 'quote': return `<span class="tok">${esc(f.marker)}</span>` +
                          (f.alert ? `<span class="tok">${esc(f.text)}</span><span class="alabel" data-x>${f.alert[0] + f.alert.slice(1).toLowerCase()}</span>`
                                   : inline(f.text));
