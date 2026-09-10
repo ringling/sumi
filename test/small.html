@@ -82,6 +82,8 @@ const lineText=i=>$$('#editor .line')[i].textContent;
   ok(typeof copied==='string'&&copied.startsWith('---\ntitle: Aftaler')&&copied.split('\n').length===$$('#editor .line').length&&copied.includes('\n- [ ] Plain line\n'),'Copy markdown puts the current source on the clipboard');
   ok(/Copied markdown/.test($('#toast').textContent),'copy shows a toast: '+$('#toast').textContent);
   $('#bFile').click(); ok($$('#menu .mi').length===10&&$$('#menu .mi kbd').length===4,'File menu: 10 items, 4 with shortcut hints'); d.body.click();
+  // Pages: the title after front matter is exempt from the page break, later headings are not
+  ok($$('#editor .line')[6].classList.contains('first')&&!$$('#editor .line')[10].classList.contains('first'),'first heading after front matter marked first; later h2 not');
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
   mclick('bFile','[data-act=html]'); await sleep(100); const html=await blob.text();

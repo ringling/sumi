@@ -317,6 +317,10 @@ known caret offset survives a render.
   natural next feature.
 - Print is deliberately Typora-like (sans, 10pt, 1.4 leading, half-height
   blank lines, narrow margin by default) regardless of the screen theme.
+- Pages (`body.pagebreak`) breaks before every h1 and h2 except the one
+  `scan()` marks `.first`: the first heading with nothing printable before it
+  (blank lines and front matter do not count). Using `:first-child` instead
+  produced an empty first page whenever front matter preceded the title.
 - Mermaid redraws on a 450 ms pause. Large diagrams will feel it.
 - The `~~~` fence and setext heading paths are the least exercised code.
 

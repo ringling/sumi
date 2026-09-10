@@ -493,8 +493,7 @@ kbd{
   .prev table,.code,.fence,pre{break-inside:avoid}
   .h{break-after:avoid}
   p,.para{orphans:3; widows:3}
-  body.pagebreak .h1,body.pagebreak .h2{break-before:page}
-  body.pagebreak .line:first-child{break-before:auto}
+  body.pagebreak .h1:not(.first),body.pagebreak .h2:not(.first){break-before:page}
 }
 </style>
 </head>
@@ -778,7 +777,7 @@ function scan(lines) {
   const out = [];
   let inCode = false, tick = '', inMath = false, mer = false;
   let blk = 0, tEnd = -1, listCtx = false, prevBlank = true;
-  let codeFrom = 0, codeLang = '', eq = 0, quoteAlert = null, prevQuote = false;
+  let codeFrom = 0, codeLang = '', eq = 0, quoteAlert = null, prevQuote = false, printed = false;
   let fmEnd = -1;
   const seen = {}; headings = [];
   if (lines[0] === '---') fmEnd = lines.findIndex((x, j) => j > 0 && /^(---|\.\.\.)\s*$/.test(x));
@@ -847,6 +846,9 @@ function scan(lines) {
       prevQuote = true;
     } else { prevQuote = false; quoteAlert = null; }
     if (f.type === 'h') { f.slug = slugify(f.text, seen); headings.push({ i, level: f.level, text: f.text, slug: f.slug }); }
+    /* the first heading with nothing printable before it must not start a new page (Pages option) */
+    if (f.type === 'h' && !printed) f.cls += ' first';
+    if (f.type !== 'empty' && f.type !== 'fm') printed = true;
     if (f.type === 'ul' || f.type === 'ol' || f.type === 'task') listCtx = true;
     else if (f.type === 'empty') prevBlank = true;
     else { prevBlank = false; if (!/^\s{2,}/.test(l) && f.type !== 'icode') listCtx = false; }
