@@ -559,6 +559,7 @@ kbd{
     <tr><td><kbd>⌘⇧K</kbd></td><td>inline code</td></tr>
     <tr><td><kbd>⌘1</kbd>–<kbd>⌘6</kbd> <kbd>⌘0</kbd></td><td>heading level, plain paragraph</td></tr>
     <tr><td><kbd>⌘⇧L</kbd></td><td>cycle list type — bullet, numbered, task, plain</td></tr>
+    <tr><td>( [ { " ` * _</td><td>auto-paired: the closer is inserted, a selection is wrapped, typing the closer steps over it, backspace removes an empty pair. Off in code; View ▸ Auto-pair turns it off</td></tr>
     <tr><td><kbd>⌘F</kbd> <kbd>⌘G</kbd> <kbd>⌘⇧G</kbd></td><td>find and replace; next and previous match. Searches the source, so folded tables and code are included</td></tr>
     <tr><td><kbd>Tab</kbd> <kbd>⇧Tab</kbd></td><td>indent, outdent list item</td></tr>
     <tr><td><kbd>⌘\</kbd></td><td>outline</td></tr>
@@ -1417,12 +1418,52 @@ function indent(out) {
 }
 
 /* ── events ───────────────────────────────────────────────────────────── */
+/* ── auto-pairing ─────────────────────────────────────────────────────────
+   Typing an opener inserts its closer after the caret, or wraps the selection;
+   typing a closer that is already there steps over it; backspace inside an
+   empty pair removes both. Off inside code and maths blocks, off for * and _
+   next to a letter or digit (2*3, snake_case), and off entirely with
+   body.nopair (View ▸ Auto-pair). */
+const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', '`': '`', '*': '*', '_': '_' };
+const CLOSERS = new Set(Object.values(PAIRS));
+function autoPair(e) {
+  if (composing || document.body.classList.contains('nopair')) return false;
+  const sel = selRange(); if (!sel) return false;
+  const line = flags[text.slice(0, sel.start).split('\n').length - 1];
+  if (line && /^(code|fence|icode|mathsrc|mathfence|fm)$/.test(line.type)) return false;
+  const ch = e.data, prev = text[sel.start - 1] || '', next = text[sel.end] || '';
+  const wordy = c => /[\p{L}\p{N}]/u.test(c);
+  if (e.inputType === 'insertText' && ch && ch.length === 1) {
+    if (sel.end > sel.start) {                            /* wrap the selection */
+      if (!(ch in PAIRS)) return false;
+      const inner = text.slice(sel.start, sel.end);
+      setText(text.slice(0, sel.start) + ch + inner + PAIRS[ch] + text.slice(sel.end), sel.start + 1, sel.end + 1);
+      return true;
+    }
+    if (CLOSERS.has(ch) && next === ch && (ch in PAIRS ? prev !== '' : true)) {   /* step over */
+      if (ch in PAIRS && !CLOSERS.has(prev) && ch !== prev && !/[\p{L}\p{N}\s]/u.test(prev) && prev !== PAIRS[ch]) { /* fall through to pairing */ }
+      else { setSel(sel.start + 1); return true; }
+    }
+    if (!(ch in PAIRS)) return false;
+    if ((ch === '*' || ch === '_') && (wordy(prev) || wordy(next))) return false;
+    if (ch === '"' && wordy(prev)) return false;
+    if (wordy(next) && ch !== '(' && ch !== '[' && ch !== '{') return false;
+    setText(text.slice(0, sel.start) + ch + PAIRS[ch] + text.slice(sel.start), sel.start + 1);
+    return true;
+  }
+  if (e.inputType === 'deleteContentBackward' && sel.start === sel.end && prev in PAIRS && next === PAIRS[prev]) {
+    setText(text.slice(0, sel.start - 1) + text.slice(sel.start + 1), sel.start - 1);
+    return true;
+  }
+  return false;
+}
 editor.addEventListener('beforeinput', e => {
   if (e.inputType === 'historyUndo') { e.preventDefault(); undo(); }
   else if (e.inputType === 'historyRedo') { e.preventDefault(); redo(); }
   else if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') {
     e.preventDefault(); handleEnter();
   }
+  else if ((e.inputType === 'insertText' || e.inputType === 'deleteContentBackward') && autoPair(e)) e.preventDefault();
 });
 editor.addEventListener('input', sync);
 editor.addEventListener('compositionstart', () => composing = true);
@@ -1602,7 +1643,7 @@ addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY 
 $('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
 /* View-state classes on body. The menus read them back, so there is no button
    state to keep in sync; the persisted ones are written on every change. */
-const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos'];
+const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos', 'nopair'];
 function toggle(cls) {
   const on = document.body.classList.toggle(cls);
   if (PERSISTED.includes(cls)) storeSettings();
@@ -1660,6 +1701,7 @@ menuButton('bView', () => [
   check('typewriter', 'Typewriter', '⌘⇧T'),
   check('source', 'Source code', '⌘⇧U'),
   '-',
+  { label: 'Auto-pair brackets and quotes', on: !document.body.classList.contains('nopair'), data: 'data-n="pair"', act: () => toggle('nopair') },
   cycle('width', 'Width: ' + widthLabel(), () => { wi = (wi + 1) % WIDTHS.length; applyWidth(); storeSettings(); }),
   cycle('font', 'Typeface: ' + fontLabel(), () => { fi = (fi + 1) % FONTS.length; applyFont(); storeSettings(); }),
 ]);
@@ -2105,6 +2147,7 @@ const storeSettings = () => persist(SKEY, {
   theme: themeName, css: userCSS, width: wi, font: fi, margin: mgi,
   pages: document.body.classList.contains('pagebreak'),
   ...Object.fromEntries(NUMS.map(([cls]) => [cls, document.body.classList.contains(cls)])),
+  nopair: document.body.classList.contains('nopair'),
 });
 
 let dbp = null;
@@ -2484,6 +2527,7 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
     if (prefs.margin >= 0 && prefs.margin < MARGINS.length) { mgi = prefs.margin; applyMargin(); }
     if (prefs.pages) document.body.classList.add('pagebreak');
     for (const [cls] of NUMS) if (prefs[cls]) document.body.classList.add(cls);
+    if (prefs.nopair) document.body.classList.add('nopair');
   }
   let d = null;
   try {

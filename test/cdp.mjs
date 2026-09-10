@@ -24,12 +24,27 @@ try {
   await send('Page.enable'); await send('Runtime.enable');
   await send('Network.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true });
   await send('Page.navigate', { url });
+  /* Typing channel: a harness pushes strings onto window.__keys; each is sent
+     as trusted key events (so beforeinput is cancellable, unlike execCommand)
+     and window.__typed counts the ones delivered. */
   let text = '';
-  for (let i = 0; i < 120; i++) {
-    await sleep(500);
-    const r = await send('Runtime.evaluate', { expression: "(document.getElementById('out')||{}).textContent||''", returnByValue: true });
-    text = r.result.value;
-    if (/\n(DONE|ERROR)/.test(text)) break;
+  for (let i = 0; i < 1200; i++) {
+    await sleep(50);
+    const q = await send('Runtime.evaluate', { expression: "JSON.stringify((window.__keys||[]).splice(0))", returnByValue: true });
+    for (const t of JSON.parse(q.result.value)) {
+      for (const ch of t) {
+        if (ch === '\n') { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); continue; }
+        if (ch === '\b') { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }); continue; }
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, text: ch, unmodifiedText: ch });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch });
+      }
+      await send('Runtime.evaluate', { expression: 'window.__typed=(window.__typed||0)+1' });
+    }
+    if (i % 10 === 9) {
+      const r = await send('Runtime.evaluate', { expression: "(document.getElementById('out')||{}).textContent||''", returnByValue: true });
+      text = r.result.value;
+      if (/\n(DONE|ERROR)/.test(text)) break;
+    }
   }
   if (shot) { const r = await send('Page.captureScreenshot', { format: 'png' }); (await import('node:fs')).writeFileSync(shot, Buffer.from(r.data, 'base64')); }
   console.log(text || 'NO OUTPUT');

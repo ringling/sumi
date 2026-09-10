@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
+const lineText=i=>{ const l=$$('#editor .line')[i]; return [...l.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join(''); };
+const caret=(i,off,end)=>{ const el=$$('#editor .line')[i]; const r=d.createRange(); let node=el, pos=off; (function walk(n){ if(node!==el) return; if(n.nodeType===3){ if(pos<=n.data.length){ node=n; } else pos-=n.data.length; return; } if(n.nodeType===1&&n.hasAttribute('data-x')) return; for(const c of n.childNodes){ walk(c); if(node!==el) return; } })(el); if(node===el){ r.setStart(el,0); } else r.setStart(node,pos); r.collapse(true);
+  if(end!==undefined){ let node2=el,pos2=end; (function walk(n){ if(node2!==el) return; if(n.nodeType===3){ if(pos2<=n.data.length){ node2=n; } else pos2-=n.data.length; return; } if(n.nodeType===1&&n.hasAttribute('data-x')) return; for(const c of n.childNodes){ walk(c); if(node2!==el) return; } })(el); if(node2!==el) r.setEnd(node2,pos2); }
+  const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); };
+const caretOff=()=>{ const s=w.getSelection(); const el=(s.anchorNode.nodeType===1?s.anchorNode:s.anchorNode.parentElement).closest('.line'); const r=d.createRange(); r.selectNodeContents(el); r.setEnd(s.anchorNode,s.anchorOffset); return r.toString().length; };
+const real=async t=>{ const n=(window.__typed||0)+1; (window.__keys=window.__keys||[]).push(t); while((window.__typed||0)<n) await sleep(30); await sleep(80); };
+const typeAt=async(i,off,ch)=>{ caret(i,off); await sleep(20); await real(ch); };
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(['plain','word here','2 3','snake case','','```js','x','```','end'].join('\n'),'p.md');
+  await typeAt(0,5,'(');
+  ok(lineText(0)==='plain()'&&caretOff()===6,'( inserts the pair with the caret inside: '+JSON.stringify(lineText(0))+' @'+caretOff());
+  await real('x');
+  ok(lineText(0)==='plain(x)','typing inside the pair');
+  await real(')');
+  ok(lineText(0)==='plain(x)'&&caretOff()===8,'typing the closer steps over it: '+JSON.stringify(lineText(0))+' @'+caretOff());
+  await typeAt(0,8,'[');
+  ok(lineText(0)==='plain(x)[]','[ pairs too');
+  await real('\b');
+  ok(lineText(0)==='plain(x)','backspace inside an empty pair removes both: '+JSON.stringify(lineText(0)));
+  await real('"');
+  ok(lineText(0)==='plain(x)""','" pairs after punctuation');
+  await real('\b');
+  // wrap a selection
+  caret(1,0,4); await sleep(20); await real('*');
+  ok(lineText(1)==='*word* here','typing * with a selection wraps it: '+JSON.stringify(lineText(1)));
+  ok(w.getSelection().toString()==='word','the wrapped text stays selected');
+  await real('*');
+  ok(lineText(1)==='**word** here','typing * again makes it bold: '+JSON.stringify(lineText(1)));
+  // no pairing next to letters or digits
+  await typeAt(2,1,'*');
+  ok(lineText(2)==='2* 3','* after a digit is literal: '+JSON.stringify(lineText(2)));
+  await typeAt(3,5,'_');
+  ok(lineText(3)==='snake_ case','_ after a letter is literal: '+JSON.stringify(lineText(3)));
+  await typeAt(3,0,'_');
+  ok(lineText(3)==='_snake_ case','_ before a letter is literal too (no __): '+JSON.stringify(lineText(3)));
+  // nothing inside a code fence
+  await typeAt(6,1,'(');
+  ok(lineText(6)==='x(','no pairing inside a code fence: '+JSON.stringify(lineText(6)));
+  // undo is one step per pair
+  await typeAt(8,3,'{');
+  ok(lineText(8)==='end{}','{ pairs');
+  key('z',{metaKey:true}); await sleep(100);
+  ok(lineText(8)==='end','undo removes the pair in one step: '+JSON.stringify(lineText(8)));
+  // switch it off
+  mclick('bView','[data-n=pair]'); await sleep(50);
+  await typeAt(8,3,'(');
+  ok(lineText(8)==='end('&&d.body.classList.contains('nopair'),'View ▸ Auto-pair off: plain insertion: '+JSON.stringify(lineText(8)));
+  ok(JSON.parse(w.localStorage.getItem('sumi:settings')).nopair===true,'setting persisted');
+  mclick('bView','[data-n=pair]'); await sleep(50);
+  ok(!d.body.classList.contains('nopair'),'switched back on');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

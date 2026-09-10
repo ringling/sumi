@@ -215,6 +215,21 @@ the screenshot checks the value. Export mirrors all three with the same
 counters on `<pre class="linenos">` (one `<span class="ln">` per line, cut
 with `hlSplit`), `body.hnums` and `body.eqnos`.
 
+## Auto-pairing
+
+`autoPair(e)` runs from `beforeinput` for `insertText` and
+`deleteContentBackward` and returns true when it handled the event (the
+handler then calls `preventDefault`). Pairs: ( [ { " ` * _. Wrap on
+selection, step over an existing closer, delete an empty pair. Off inside
+code, fence, maths and front-matter lines, off for * and _ next to a letter
+or digit, off entirely under `body.nopair` (View ▸ Auto-pair, persisted).
+Every change goes through `setText`, so each pair is one undo step.
+
+Chrome does not let `beforeinput` from `execCommand` be cancelled, so
+harnesses that test this must type with real key events: push strings onto
+`window.__keys` and the driver sends them as trusted keys (`\b` backspace,
+`\n` Enter), bumping `window.__typed` per string.
+
 ## Find and replace
 
 `#find` (⌘F, File ▸ Find) searches `text`, so folded tables and code are
@@ -278,6 +293,7 @@ node test/cdp.mjs http://localhost:8765/test/history.html    # versions, diff, r
 node test/cdp.mjs http://localhost:8765/test/alerts.html     # GitHub alerts, all five kinds, editor and export
 node test/cdp.mjs http://localhost:8765/test/demo.html       # demo.md: every block and inline construct, round-trip, export
 node test/cdp.mjs http://localhost:8765/test/find.html       # find and replace
+node test/cdp.mjs http://localhost:8765/test/pair.html       # auto-pairing, typed with real key events
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
