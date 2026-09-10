@@ -519,6 +519,7 @@ kbd{
   <input id="name" value="untitled.md" spellcheck="false" aria-label="File name">
   <span class="sp"></span>
   <button class="b" id="bView" aria-haspopup="menu" aria-expanded="false" title="Outline, focus, typewriter, source code; width and typeface">View</button>
+  <button class="b" id="bEdit" aria-haspopup="menu" aria-expanded="false" title="Find, lists, tables">Edit</button>
   <button class="b" id="bTheme" aria-haspopup="menu" aria-expanded="false" title="Theme — Cmd Shift D flips light/dark">Theme</button>
   <button class="b" id="bPage" aria-haspopup="menu" aria-expanded="false" title="Margin, page breaks, numbering">Page</button>
   <button class="b" id="bFile" aria-haspopup="menu" aria-expanded="false" title="Open, save, copy, export, print">File</button>
@@ -568,7 +569,7 @@ kbd{
     <tr><td><kbd>⌘⇧U</kbd></td><td>source code mode — raw markdown, monospace, nothing folded</td></tr>
     <tr><td><kbd>⌘S</kbd> <kbd>⌘O</kbd></td><td>save, open</td></tr>
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
-    <tr><td>tables</td><td>fold to a rendered grid when the caret leaves</td></tr>
+    <tr><td>tables</td><td>fold to a rendered grid when the caret leaves. Inside one: <kbd>Tab</kbd> <kbd>⇧Tab</kbd> move between cells (Tab past the last cell adds a row), <kbd>⌘⏎</kbd> adds a row, <kbd>⌘⇧|</kbd> tidies the source; Edit ▸ adds and deletes rows and columns</td></tr>
     <tr><td>View</td><td>outline, focus, typewriter, source code; line width and typeface</td></tr>
     <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3; a lone # title stays unnumbered) and equation numbers</td></tr>
     <tr><td>File</td><td>new document, the Documents drawer, open, save, copy markdown, export HTML, print or PDF</td></tr>
@@ -765,6 +766,112 @@ function tableHtml(rows) {
   let h = '<table><thead><tr>' + splitRow(rows[0]).map((c, n) => cell('th', c, n)).join('') + '</tr></thead>';
   const body = rows.slice(2).map(r => '<tr>' + splitRow(r).map((c, n) => cell('td', c, n)).join('') + '</tr>').join('');
   return h + (body ? '<tbody>' + body + '</tbody>' : '') + '</table>';
+}
+
+/* ── table commands ───────────────────────────────────────────────────────
+   All source rewriting through setText (one undo step each); the folded
+   preview follows on its own. Cells are addressed by cellSpans(), which
+   returns the trimmed content span of each cell in a raw row. */
+function cellSpans(row) {
+  const spans = [], n = row.length;
+  let s = 0; while (s < n && /\s/.test(row[s])) s++;
+  if (row[s] === '|') s++;
+  let cur = s;
+  for (let i = s; i <= n; i++) {
+    if (i < n && row[i] === '\\' && row[i + 1] === '|') { i++; continue; }
+    if (i === n || row[i] === '|') {
+      let a = cur, b = i;
+      while (a < b && /\s/.test(row[a])) a++;
+      while (b > a && /\s/.test(row[b - 1])) b--;
+      spans.push({ start: a, end: b, from: cur, to: i });
+      cur = i + 1;
+    }
+  }
+  const last = spans[spans.length - 1];
+  if (spans.length > 1 && last.start === last.end && row.slice(0, last.from).trimEnd().endsWith('|')) spans.pop();
+  return spans;
+}
+const escPipe = c => c.replace(/\|/g, '\\|');
+function tidyRows(rows) {
+  const cells = rows.map(splitRow);
+  const cols = Math.max(...cells.map(c => c.length));
+  const len = t => [...t].length;
+  const width = Array.from({ length: cols }, (_, k) => Math.max(3, ...cells.map((r, ri) => ri === 1 ? 0 : len(escPipe(r[k] || '')))));
+  const align = (cells[1] || []).map(c => /^:-+:$/.test(c) ? 'c' : /^-+:$/.test(c) ? 'r' : /^:-+$/.test(c) ? 'l' : '');
+  return rows.map((row, ri) => {
+    const parts = [];
+    for (let k = 0; k < cols; k++) {
+      const w = width[k], a = align[k] || '';
+      if (ri === 1) parts.push((a === 'l' || a === 'c' ? ':' : '-') + '-'.repeat(w - 2) + (a === 'r' || a === 'c' ? ':' : '-'));
+      else {
+        const t = escPipe(cells[ri][k] || ''), pad = w - len(t), half = Math.floor(pad / 2);
+        parts.push(a === 'r' ? ' '.repeat(pad) + t : a === 'c' ? ' '.repeat(half) + t + ' '.repeat(pad - half) : t + ' '.repeat(pad));
+      }
+    }
+    return '| ' + parts.join(' | ') + ' |';
+  });
+}
+function tableCtx() {
+  const sel = selRange(); if (!sel) return null;
+  const lines = text.split('\n');
+  const li = text.slice(0, sel.start).split('\n').length - 1;
+  const f = flags[li]; if (!f || f.type !== 'table') return null;
+  let a = li, b = li;
+  while (a > 0 && flags[a - 1].type === 'table' && flags[a - 1].blk === f.blk) a--;
+  while (b + 1 < flags.length && flags[b + 1].type === 'table' && flags[b + 1].blk === f.blk) b++;
+  const lineStart = lines.slice(0, li).reduce((n, l) => n + l.length + 1, 0);
+  const col = sel.start - lineStart, spans = cellSpans(lines[li]);
+  let cell = spans.findIndex(sp => col <= sp.to); if (cell < 0) cell = spans.length - 1;
+  return { a, b, li, row: li - a, cell, lines, rows: lines.slice(a, b + 1) };
+}
+function replaceTable(c, rows, rowIdx, cellIdx) {
+  const lines = c.lines.slice(); lines.splice(c.a, c.b - c.a + 1, ...rows);
+  rowIdx = Math.max(0, Math.min(rowIdx, rows.length - 1));
+  const start = lines.slice(0, c.a + rowIdx).reduce((n, l) => n + l.length + 1, 0);
+  const spans = cellSpans(rows[rowIdx]), sp = spans[Math.max(0, Math.min(cellIdx, spans.length - 1))];
+  setText(lines.join('\n'), start + sp.start, start + sp.end);
+}
+const noTable = () => { toast('The caret is not in a table'); };
+function tableTidy() { const c = tableCtx(); if (!c) return noTable(); replaceTable(c, tidyRows(c.rows), c.row, c.cell); }
+function tableAddRow() {
+  const c = tableCtx(); if (!c) return noTable();
+  const cols = splitRow(c.rows[0]).length, at = Math.max(c.row, 1) + 1, rows = c.rows.slice();
+  rows.splice(at, 0, '|' + ' |'.repeat(cols));
+  replaceTable(c, tidyRows(rows), at, 0);
+}
+function tableDelRow() {
+  const c = tableCtx(); if (!c) return noTable();
+  if (c.row < 2) { toast('The header and its divider stay'); return; }
+  const rows = c.rows.slice(); rows.splice(c.row, 1);
+  replaceTable(c, tidyRows(rows), Math.min(c.row, rows.length - 1), c.cell);
+}
+function tableAddCol() {
+  const c = tableCtx(); if (!c) return noTable();
+  const rows = c.rows.map((r, i) => { const cells = splitRow(r); cells.splice(c.cell + 1, 0, i === 1 ? '---' : ''); return '| ' + cells.map(escPipe).join(' | ') + ' |'; });
+  replaceTable(c, tidyRows(rows), c.row, c.cell + 1);
+}
+function tableDelCol() {
+  const c = tableCtx(); if (!c) return noTable();
+  if (splitRow(c.rows[0]).length <= 1) { toast('A table keeps at least one column'); return; }
+  const rows = c.rows.map(r => { const cells = splitRow(r); if (c.cell < cells.length) cells.splice(c.cell, 1); return '| ' + cells.map(escPipe).join(' | ') + ' |'; });
+  replaceTable(c, tidyRows(rows), c.row, Math.max(0, c.cell - 1));
+}
+/* Tab / Shift-Tab: next or previous cell, skipping the divider row; Tab past the last cell adds a row. */
+function tableNav(back) {
+  const c = tableCtx(); if (!c) return false;
+  let row = c.row, cell = c.cell + (back ? -1 : 1);
+  if (row === 1) { row = back ? 0 : 2; cell = back ? cellSpans(c.rows[0]).length - 1 : 0; }
+  if (cell < 0) { if (row === 0) return true; row = row === 2 ? 0 : row - 1; cell = cellSpans(c.rows[row]).length - 1; }
+  const cols = splitRow(c.rows[0]).length;
+  if (cell >= cols) {
+    row = row === 0 ? 2 : row + 1; cell = 0;
+    if (row > c.rows.length - 1) { tableAddRow(); return true; }
+  }
+  /* a row shorter than the header: tidy pads it, then land in the new cell */
+  if (cell >= cellSpans(c.rows[row]).length) { replaceTable(c, tidyRows(c.rows), row, cell); return true; }
+  const start = c.lines.slice(0, c.a + row).reduce((n, l) => n + l.length + 1, 0), sp = cellSpans(c.rows[row])[cell];
+  setSel(start + sp.start, start + sp.end); updateActive();
+  return true;
 }
 
 /* ── line classification ─────────────────────────────────────────────── */
@@ -1500,7 +1607,7 @@ const mod = e => e.metaKey || e.ctrlKey;
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { $('#help').classList.remove('show'); $('#diff').classList.remove('show'); closeMenu(); if (find.open) closeFind(); return; }
   if (!mod(e)) {
-    if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); indent(e.shiftKey); }
+    if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); if (!tableNav(e.shiftKey)) indent(e.shiftKey); }
     return;
   }
   const k = e.key.toLowerCase();
@@ -1523,6 +1630,8 @@ document.addEventListener('keydown', e => {
   if (k === 'i') { e.preventDefault(); wrapSel('*'); return; }
   if (k === 'k' && e.shiftKey) { e.preventDefault(); wrapSel('`'); return; }
   if (k === 'l' && e.shiftKey) { e.preventDefault(); cycleList(); return; }
+  if (k === '|' || (k === '\\' && e.shiftKey)) { e.preventDefault(); tableTidy(); return; }
+  if (e.key === 'Enter') { e.preventDefault(); tableAddRow(); return; }
   if (k === 'k') {
     e.preventDefault();
     const sel = selRange(); if (!sel) return;
@@ -1705,6 +1814,16 @@ menuButton('bView', () => [
   cycle('width', 'Width: ' + widthLabel(), () => { wi = (wi + 1) % WIDTHS.length; applyWidth(); storeSettings(); }),
   cycle('font', 'Typeface: ' + fontLabel(), () => { fi = (fi + 1) % FONTS.length; applyFont(); storeSettings(); }),
 ]);
+menuButton('bEdit', () => [
+  { label: 'Find and replace', hint: '⌘F', data: 'data-act="find"', act: openFind },
+  { label: 'Cycle list type', hint: '⌘⇧L', data: 'data-act="list"', act: cycleList },
+  '-',
+  { label: 'Tidy table', hint: '⌘⇧|', data: 'data-act="tidy"', act: tableTidy },
+  { label: 'Add row below', hint: '⌘⏎', data: 'data-act="addrow"', act: tableAddRow },
+  { label: 'Add column after', data: 'data-act="addcol"', act: tableAddCol },
+  { label: 'Delete row', data: 'data-act="delrow"', act: tableDelRow },
+  { label: 'Delete column', data: 'data-act="delcol"', act: tableDelCol },
+]);
 menuButton('bPage', () => [
   cycle('margin', 'Margin: ' + MARGINS[mgi][0], () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); storeSettings(); }),
   '-',
@@ -1719,7 +1838,6 @@ menuButton('bFile', () => [
   { label: 'Open…', hint: '⌘O', data: 'data-act="open"', act: () => $('#picker').click() },
   { label: 'Save', hint: '⌘S', data: 'data-act="save"', act: saveMd },
   '-',
-  { label: 'Find and replace', hint: '⌘F', data: 'data-act="find"', act: openFind },
   { label: 'Copy markdown', data: 'data-act="copy"', act: copySource },
   { label: 'Export HTML', hint: '⌘⇧E', data: 'data-act="html"', act: exportHtml },
   { label: 'Print or PDF', hint: '⌘P', data: 'data-act="print"', act: () => print() },

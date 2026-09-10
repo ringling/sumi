@@ -69,6 +69,7 @@ Add a new block type by giving it a `blk`, a `kind`, and a branch in
 | `demo.md` | every supported construct in one document; `test/demo.html` loads it and checks each renders and exports |
 | `<style>` tokens | CSS custom properties; the default (Paper) values |
 | `<style>` themes | one `html[data-theme="…"]` block per built-in theme |
+| table commands | `cellSpans`, `tidyRows`, `tableCtx`, `replaceTable`, `tableNav` |
 | `<style>` writing surface | `.line`, `.tok` folding, block/preview/fold rules |
 | `@media print` | page breaks, margins, hiding block source |
 | GFM inline | `inline(s, clean)` — one tokenizer, two output modes |
@@ -215,6 +216,18 @@ the screenshot checks the value. Export mirrors all three with the same
 counters on `<pre class="linenos">` (one `<span class="ln">` per line, cut
 with `hlSplit`), `body.hnums` and `body.eqnos`.
 
+## Table commands
+
+Edit ▸ Tidy table (⌘⇧|), Add row below (⌘⏎), Add column after, Delete row,
+Delete column; Tab and Shift-Tab move between cells and Tab past the last
+cell adds a row. `tableCtx()` finds the run of `table` lines around the
+caret and the caret's cell via `cellSpans()` (trimmed content span per cell,
+`\|` respected). Every command rewrites the run with `tidyRows()` (columns
+padded to the widest cell in code points, alignment kept from the divider)
+and `replaceTable()` places the selection in a chosen cell, all through
+`setText`. A row shorter than the header is padded by tidy when Tab reaches
+its missing cell. Header and divider rows cannot be deleted.
+
 ## Auto-pairing
 
 `autoPair(e)` runs from `beforeinput` for `insertText` and
@@ -294,6 +307,7 @@ node test/cdp.mjs http://localhost:8765/test/alerts.html     # GitHub alerts, al
 node test/cdp.mjs http://localhost:8765/test/demo.html       # demo.md: every block and inline construct, round-trip, export
 node test/cdp.mjs http://localhost:8765/test/find.html       # find and replace
 node test/cdp.mjs http://localhost:8765/test/pair.html       # auto-pairing, typed with real key events
+node test/cdp.mjs http://localhost:8765/test/table.html      # table commands and Tab navigation
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
@@ -342,9 +356,7 @@ known caret offset survives a render.
   `- item` lists only. Anything else shows in the source but not in the card.
 - Raw HTML is shown as source in the editor (rendering it would inject untracked
   text nodes). It passes through untouched on export.
-- Table editing is source editing. No cell navigation, no auto-alignment of the
-  source pipes. A "tidy table" command that pads the source columns would be a
-  natural next feature.
+- Table editing is source editing with helpers; there is no cell-level widget.
 - Print is deliberately Typora-like (sans, 10pt, 1.4 leading, half-height
   blank lines, narrow margin by default) regardless of the screen theme.
 - Pages (`body.pagebreak`) breaks before every h1 and h2 except the one
@@ -356,5 +368,4 @@ known caret offset survives a render.
 
 ## Ideas not yet built
 
-- Tidy/align table source (`⌘⇧|`)
 - Vendored offline build (~1.5 MB with KaTeX + Mermaid inlined)

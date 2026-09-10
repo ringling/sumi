@@ -1,0 +1,72 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
+const srcText=i=>{ const l=$$('#editor .line')[i]; const s=l.querySelector('.src'); return s?s.textContent:[...l.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join(''); };
+const lines=()=>$$('#editor .line').map((_,i)=>srcText(i));
+const caret=(i,off)=>{ const el=$$('#editor .line')[i]; const r=d.createRange(); let node=null,pos=off; (function walk(n){ if(node) return; if(n.nodeType===3){ if(pos<=n.data.length) node=n; else pos-=n.data.length; return; } if(n.nodeType===1&&n.hasAttribute('data-x')) return; for(const c of n.childNodes){ walk(c); if(node) return; } })(el); r.setStart(node||el,node?pos:0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
+const selText=()=>w.getSelection().toString();
+const src=['intro','','|Name|Value|Note|','|:--|--:|:-:|','|Alpha|1|x|','| Long cell here |22|','','after'];
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(src.join('\n'),'t.md');
+  // outside a table: commands refuse politely
+  caret(0,2); await sleep(50); mclick('bEdit','[data-act=tidy]'); await sleep(80);
+  ok(/not in a table/.test($('#toast').textContent)&&srcText(2)===src[2],'tidy outside a table toasts and changes nothing');
+  caret(0,2); await sleep(30); key('Tab'); await sleep(80);
+  ok(srcText(0)==='in  tro','Tab outside a table still indents at the caret: '+JSON.stringify(srcText(0)));
+  key('z',{metaKey:true}); await sleep(80);
+  // tidy
+  caret(4,3); await sleep(50); mclick('bEdit','[data-act=tidy]'); await sleep(120);
+  ok(lines().slice(2,6).join('\n')==='| Name           | Value | Note |\n| :------------- | ----: | :--: |\n| Alpha          |     1 |  x   |\n| Long cell here |    22 |      |','tidy aligns the source: \n'+lines().slice(2,6).join('\n'));
+  ok(selText()==='Alpha','caret cell is selected after tidy: '+JSON.stringify(selText()));
+  ok(lines().length===8&&srcText(7)==='after','surrounding lines untouched');
+  const tidied=lines().slice(2,6).join('\n');
+  mclick('bEdit','[data-act=tidy]'); await sleep(120);
+  ok(lines().slice(2,6).join('\n')===tidied,'tidy is idempotent');
+  key('z',{metaKey:true}); await sleep(80); key('z',{metaKey:true}); await sleep(80);
+  ok(srcText(4)==='|Alpha|1|x|','undo restores the untidy source');
+  // Tab navigation on the untidy table
+  caret(2,2); await sleep(50);            // in "Name"
+  key('Tab'); await sleep(80); ok(selText()==='Value','Tab moves to the next header cell: '+JSON.stringify(selText()));
+  key('Tab'); await sleep(80); key('Tab'); await sleep(80);
+  ok(selText()==='Alpha','Tab from the last header cell skips the divider into the first body cell: '+JSON.stringify(selText()));
+  key('Tab',{shiftKey:true}); await sleep(80); ok(selText()==='Note','Shift-Tab goes back to the last header cell');
+  caret(5,5); await sleep(50); key('Tab'); await sleep(80); ok(selText()==='22','into the last cell with content: '+JSON.stringify(selText()));
+  key('Tab'); await sleep(80);
+  ok(selText()===''&&srcText(5)==='| Long cell here |    22 |      |'&&lines().length===8,'Tab into the missing third cell pads the row: '+JSON.stringify(srcText(5)));
+  key('Tab'); await sleep(150);
+  ok(lines().length===9&&/^\|\s+\|\s+\|\s+\|$/.test(srcText(6))&&srcText(7)===''&&selText()==='','Tab past the last cell adds a tidy empty row and lands in it: '+JSON.stringify(srcText(6)));
+  ok(srcText(2)==='| Name           | Value | Note |','adding a row tidied the whole table');
+  // cmd-Enter adds a row below the caret row
+  caret(4,3); await sleep(50); key('Enter',{metaKey:true}); await sleep(150);
+  ok(lines().length===10&&/^\|\s+\|\s+\|\s+\|$/.test(srcText(5))&&srcText(6).startsWith('| Long cell here'),'cmd-Enter inserts a row below Alpha');
+  // add and delete column
+  caret(4,3); await sleep(50); mclick('bEdit','[data-act=addcol]'); await sleep(150);
+  ok(srcText(2)==='| Name           |     | Value | Note |'&&srcText(3)==='| :------------- | --- | ----: | :--: |'&&srcText(4)==='| Alpha          |     |     1 |  x   |','column added after Name in every row: '+srcText(2));
+  ok(selText()==='','caret in the new empty cell');
+  mclick('bEdit','[data-act=delcol]'); await sleep(150);
+  ok(srcText(2)==='| Name           | Value | Note |','the new column deleted again');
+  // delete row: body yes, header no
+  caret(5,3); await sleep(50); mclick('bEdit','[data-act=delrow]'); await sleep(150);
+  ok(lines().length===9&&srcText(5).startsWith('| Long cell here'),'empty row deleted');
+  caret(2,3); await sleep(50); mclick('bEdit','[data-act=delrow]'); await sleep(100);
+  ok(lines().length===9&&/header/.test($('#toast').textContent),'header row cannot be deleted');
+  // export still renders the tidy table
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  mclick('bFile','[data-act=html]'); await sleep(150); const html=await blob.text();
+  ok(/<th style="text-align:left">Name<\/th><th style="text-align:right">Value<\/th><th style="text-align:center">Note<\/th>/.test(html),'export keeps alignment');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

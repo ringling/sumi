@@ -81,7 +81,7 @@ const lineText=i=>$$('#editor .line')[i].textContent;
   mclick('bFile','[data-act=copy]'); await sleep(80);
   ok(typeof copied==='string'&&copied.startsWith('---\ntitle: Aftaler')&&copied.split('\n').length===$$('#editor .line').length&&copied.includes('\n- [ ] Plain line\n'),'Copy markdown puts the current source on the clipboard');
   ok(/Copied markdown/.test($('#toast').textContent),'copy shows a toast: '+$('#toast').textContent);
-  $('#bFile').click(); ok($$('#menu .mi').length===11&&$$('#menu .mi kbd').length===5,'File menu: 11 items, 5 with shortcut hints'); d.body.click();
+  $('#bFile').click(); ok($$('#menu .mi').length===10&&$$('#menu .mi kbd').length===4,'File menu: 10 items, 4 with shortcut hints'); d.body.click();
   // Pages: the title after front matter is exempt from the page break, later headings are not
   ok($$('#editor .line')[6].classList.contains('first')&&!$$('#editor .line')[10].classList.contains('first'),'first heading after front matter marked first; later h2 not');
   // export
