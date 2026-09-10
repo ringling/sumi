@@ -767,7 +767,7 @@ function classify(t) {
     f.cls = 'ol'; f.ind = Math.floor(m[1].length / 2) + 1;
     f.text = t.slice(m[0].length); return f; }
   if (/^\s*<\/?[a-zA-Z][^>]*>/.test(t)) { f.type = 'html'; f.cls = 'rawhtml'; return f; }
-  if (/^\s*!\[[^\]]*\]\([^)\s]+\)\s*$/.test(t)) { f.type = 'img'; f.cls = 'para'; return f; }
+  if (/^\s*!\[[^\]]*\]\([^)\s]+(?:\s+"[^"]*")?\)\s*$/.test(t)) { f.type = 'img'; f.cls = 'para'; return f; }
   f.type = 'p'; f.cls = 'para'; return f;
 }
 
@@ -963,12 +963,13 @@ function coreLine(s, f) {
     case 'ul':    return `<span class="tok">${esc(f.marker)}</span>` + inline(f.text);
     case 'ol':    return `<span class="tok">${esc(f.pre)}</span><span class="onum">${esc(f.num)}</span>`
                        + esc(f.gap) + inline(f.text);
-    case 'fndef': return `<span class="tok">${esc(f.marker)}</span><span class="fn" data-x>${fnNum[key(/\[\^([^\]\s]+)\]/.exec(f.marker)[1])] || '?'}</span> ` + inline(f.text);
+    /* no literal text around the data-x number: the marker already carries its trailing space */
+    case 'fndef': return `<span class="tok">${esc(f.marker)}</span><span class="fn" data-x>${fnNum[key(/\[\^([^\]\s]+)\]/.exec(f.marker)[1])] || '?'}</span>` + inline(f.text);
     case 'refdef': return inline(s);
     case 'table': return esc(s).replace(/\|/g, '<span class="pipe">|</span>');
     case 'img': {
-      const m = /!\[([^\]]*)\]\(([^)\s]+)\)/.exec(s);
-      return inline(s) + `<img class="mdimg" src="${att(safeURL(m[2]))}" alt="${att(m[1])}">`; }
+      const m = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/.exec(s);
+      return inline(s) + `<img class="mdimg" data-x src="${att(safeURL(m[2]))}" alt="${att(m[1])}"${m[3] ? ` title="${att(m[3])}"` : ''}>`; }
     default:      return inline(s);
   }
 }
