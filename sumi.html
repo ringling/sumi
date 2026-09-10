@@ -139,6 +139,22 @@ button.b:hover{background:var(--paper-2); color:var(--ink)}
 button.b[aria-pressed="true"]{background:var(--accent); color:var(--paper)}
 button.b:focus-visible, #name:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
 .dot{width:1px;height:16px;background:var(--rule);margin:0 6px}
+#find{
+  position:fixed; top:54px; right:16px; z-index:30; display:none;
+  background:var(--paper); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow);
+  padding:6px; font-family:var(--sans); font-size:12.5px; color:var(--ink-soft);
+}
+#find.show{display:block}
+#find .row{display:flex; align-items:center; gap:3px}
+#find .row + .row{margin-top:4px}
+#find input{font:inherit; color:var(--ink); background:var(--paper-2); border:1px solid transparent; border-radius:6px; padding:4px 8px; width:15em; outline:none}
+#find input:focus{border-color:var(--accent)}
+#find #fcount{min-width:4em; text-align:right; color:var(--ink-faint); font-size:11.5px; padding:0 4px; white-space:nowrap}
+#find .fb{font:inherit; color:var(--ink-soft); background:none; border:0; border-radius:5px; padding:4px 7px; cursor:pointer; min-width:1.9em}
+#find .fb:hover{background:var(--paper-2); color:var(--ink)}
+#find .fb[aria-pressed="true"]{background:var(--accent); color:var(--paper)}
+::highlight(sumi-find){background:color-mix(in srgb,var(--mark) 75%,transparent)}
+::highlight(sumi-find-current){background:var(--accent); color:var(--paper)}
 #menu{
   position:fixed; top:46px; z-index:25; display:none; min-width:15em; padding:6px;
   background:var(--paper); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow);
@@ -472,7 +488,7 @@ kbd{
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
-  #bar,#outline,#docs,#hist,#diff,#count,#toast,#help,#menu{display:none!important}
+  #bar,#outline,#docs,#hist,#diff,#count,#toast,#help,#menu,#find{display:none!important}
   .fmcard{display:none}
   html,html[data-theme]{--paper:#fff; --paper-2:#f0f0f0; --ink:#000; --ink-soft:#444; --ink-faint:#777; --rule:#ccc; --code-bg:#f3f3f3; --mark:#efe9a4}
   /* compact, Typora-like page: sans, 10pt, tight leading, half-height blank lines */
@@ -514,6 +530,22 @@ kbd{
 <nav id="hist" aria-label="History"></nav>
 <div id="diff" role="dialog" aria-label="Version diff"><div class="card"></div></div>
 <div id="menu" role="menu"></div>
+<div id="find" role="search" aria-label="Find and replace">
+  <div class="row">
+    <input id="fq" placeholder="Find" aria-label="Find" spellcheck="false" autocomplete="off">
+    <span id="fcount"></span>
+    <button type="button" class="fb" id="fprev" title="Previous — Shift Enter, Cmd Shift G">‹</button>
+    <button type="button" class="fb" id="fnext" title="Next — Enter, Cmd G">›</button>
+    <button type="button" class="fb" id="fcase" aria-pressed="false" title="Match case">Aa</button>
+    <button type="button" class="fb" id="fword" aria-pressed="false" title="Whole word">W</button>
+    <button type="button" class="fb" id="fclose" title="Close — Esc">×</button>
+  </div>
+  <div class="row">
+    <input id="fr" placeholder="Replace" aria-label="Replace with" spellcheck="false" autocomplete="off">
+    <button type="button" class="fb" id="frep" title="Replace this match — Enter">Replace</button>
+    <button type="button" class="fb" id="fall" title="Replace every match">All</button>
+  </div>
+</div>
 
 <div id="wrap"><div id="editor" contenteditable="true" spellcheck="true" autocorrect="off" role="textbox" aria-multiline="true"></div></div>
 
@@ -527,6 +559,7 @@ kbd{
     <tr><td><kbd>⌘⇧K</kbd></td><td>inline code</td></tr>
     <tr><td><kbd>⌘1</kbd>–<kbd>⌘6</kbd> <kbd>⌘0</kbd></td><td>heading level, plain paragraph</td></tr>
     <tr><td><kbd>⌘⇧L</kbd></td><td>cycle list type — bullet, numbered, task, plain</td></tr>
+    <tr><td><kbd>⌘F</kbd> <kbd>⌘G</kbd> <kbd>⌘⇧G</kbd></td><td>find and replace; next and previous match. Searches the source, so folded tables and code are included</td></tr>
     <tr><td><kbd>Tab</kbd> <kbd>⇧Tab</kbd></td><td>indent, outdent list item</td></tr>
     <tr><td><kbd>⌘\</kbd></td><td>outline</td></tr>
     <tr><td><kbd>⌘⇧F</kbd> <kbd>⌘⇧T</kbd></td><td>focus mode, typewriter mode</td></tr>
@@ -1198,6 +1231,7 @@ function afterChange(save = true) {
   updateActive();
   updateCount();
   buildOutline();
+  if (find.open) runFind();
   renderPreviews(false);
   clearTimeout(prevTimer);
   prevTimer = setTimeout(() => renderPreviews(true), 450);
@@ -1423,7 +1457,7 @@ editor.addEventListener('click', e => {
 
 const mod = e => e.metaKey || e.ctrlKey;
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { $('#help').classList.remove('show'); $('#diff').classList.remove('show'); closeMenu(); return; }
+  if (e.key === 'Escape') { $('#help').classList.remove('show'); $('#diff').classList.remove('show'); closeMenu(); if (find.open) closeFind(); return; }
   if (!mod(e)) {
     if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); indent(e.shiftKey); }
     return;
@@ -1440,6 +1474,8 @@ document.addEventListener('keydown', e => {
   if (k === 't' && e.shiftKey) { e.preventDefault(); toggle('typewriter'); return; }
   if (k === 'd' && e.shiftKey) { e.preventDefault(); toggleDark(); return; }
   if (k === 'r' && e.shiftKey) { e.preventDefault(); document.documentElement.classList.toggle('reveal'); return; }
+  if (k === 'f' && !e.shiftKey && !e.altKey) { e.preventDefault(); openFind(); return; }
+  if (k === 'g' && !e.altKey) { e.preventDefault(); if (!find.open) openFind(); else gotoMatch(find.cur + (e.shiftKey ? -1 : 1)); return; }
   if (k === 'u' && e.shiftKey) { e.preventDefault(); toggle('source'); return; }
   if (document.activeElement !== editor) return;
   if (k === 'b') { e.preventDefault(); wrapSel('**'); return; }
@@ -1456,6 +1492,110 @@ document.addEventListener('keydown', e => {
   }
   if (/^[0-6]$/.test(e.key)) { e.preventDefault(); heading(+e.key); return; }
 });
+
+/* ── find & replace ───────────────────────────────────────────────────────
+   Searches the raw source, so matches inside folded tables and code count.
+   Matches are painted with the CSS Custom Highlight API over the existing
+   text nodes: nothing is inserted, so the walkers and render keys are
+   untouched. Replacements go through setText, one undo step each. Without
+   the API the current match is still shown by the selection. */
+const find = { open: false, matches: [], cur: -1 };
+const fq = $('#fq'), fr = $('#fr');
+const hlAPI = typeof Highlight === 'function' && 'highlights' in CSS;
+function findRegex() {
+  const q = fq.value; if (!q) return null;
+  const pat = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const word = $('#fword').getAttribute('aria-pressed') === 'true';
+  const cs = $('#fcase').getAttribute('aria-pressed') === 'true';
+  return new RegExp(word ? `(?<![\\p{L}\\p{N}_])${pat}(?![\\p{L}\\p{N}_])` : pat, 'gu' + (cs ? '' : 'i'));
+}
+function runFind() {
+  const re = findRegex();
+  find.matches = [];
+  if (re) { let m; while ((m = re.exec(text))) { if (!m[0].length) { re.lastIndex++; continue; } find.matches.push([m.index, m.index + m[0].length]); } }
+  if (!find.matches.length) find.cur = -1;
+  else { const sel = selRange(), from = sel ? sel.start : 0; find.cur = find.matches.findIndex(x => x[0] >= from); if (find.cur < 0) find.cur = 0; }
+  paintFind(); findCount();
+}
+function findCount() {
+  $('#fcount').textContent = find.matches.length ? `${find.cur + 1} of ${find.matches.length}` : fq.value ? 'no match' : '';
+}
+/* every text node in document order with its offset in `text`, data-x skipped */
+function textNodeMap() {
+  const map = []; let base = 0;
+  for (const u of units()) {
+    (function walk(n) {
+      if (n.nodeType === 3) { map.push({ node: n, start: base }); base += n.data.length; return; }
+      if (n.nodeType !== 1 || (n.dataset && n.dataset.x !== undefined)) return;
+      for (const c of n.childNodes) walk(c);
+    })(u);
+    base += 1;
+  }
+  return map;
+}
+function paintFind() {
+  if (!hlAPI) return;
+  if (!find.open || !find.matches.length) { CSS.highlights.delete('sumi-find'); CSS.highlights.delete('sumi-find-current'); return; }
+  const map = textNodeMap(), all = new Highlight(), cur = new Highlight();
+  cur.priority = 1;
+  if (!map.length) return;
+  const endOf = k => map[k].start + map[k].node.data.length;
+  let k = 0;
+  find.matches.forEach(([s, e], i) => {
+    while (k < map.length - 1 && endOf(k) < s) k++;
+    let k2 = k; while (k2 < map.length - 1 && endOf(k2) < e) k2++;
+    const r = new Range();
+    try {
+      r.setStart(map[k].node, Math.min(Math.max(0, s - map[k].start), map[k].node.data.length));
+      r.setEnd(map[k2].node, Math.min(Math.max(0, e - map[k2].start), map[k2].node.data.length));
+    } catch (err) { return; }
+    (i === find.cur ? cur : all).add(r);
+  });
+  CSS.highlights.set('sumi-find', all); CSS.highlights.set('sumi-find-current', cur);
+}
+function gotoMatch(i) {
+  const n = find.matches.length; if (!n) return;
+  find.cur = ((i % n) + n) % n;
+  const [s, e] = find.matches[find.cur];
+  setSel(s, e); updateActive();
+  const [node] = locate(s), line = (node.nodeType === 3 ? node.parentElement : node).closest('.line');
+  if (line) { const r = line.getBoundingClientRect(); if (r.top < 70 || r.bottom > innerHeight - 40) wrap.scrollTop += r.top - innerHeight * 0.4; }
+  paintFind(); findCount();
+}
+function openFind() {
+  find.open = true; $('#find').classList.add('show');
+  const sel = selRange();
+  if (sel && sel.end > sel.start && sel.end - sel.start < 200) { const t = text.slice(sel.start, sel.end); if (!t.includes('\n')) fq.value = t; }
+  fq.focus(); fq.select(); runFind();
+}
+function closeFind() {
+  find.open = false; $('#find').classList.remove('show'); paintFind();
+  editor.focus();
+  if (find.cur >= 0 && find.matches[find.cur]) setSel(...find.matches[find.cur]);
+  updateActive();
+}
+function replaceOne() {
+  if (find.cur < 0 || !find.matches[find.cur]) return;
+  const [s, e] = find.matches[find.cur], r = fr.value;
+  setText(text.slice(0, s) + r + text.slice(e), s + r.length);
+  if (find.cur >= 0) gotoMatch(find.cur);
+}
+function replaceAll() {
+  const n = find.matches.length; if (!n) return;
+  let out = text; const r = fr.value;
+  for (let i = n - 1; i >= 0; i--) { const [s, e] = find.matches[i]; out = out.slice(0, s) + r + out.slice(e); }
+  setText(out, 0);
+  toast(`Replaced ${n} ${n === 1 ? 'match' : 'matches'}`);
+}
+fq.addEventListener('input', runFind);
+fq.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); gotoMatch(find.cur + (e.shiftKey ? -1 : 1)); } });
+fr.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); replaceOne(); } });
+$('#fnext').onclick = () => gotoMatch(find.cur + 1);
+$('#fprev').onclick = () => gotoMatch(find.cur - 1);
+$('#frep').onclick = replaceOne;
+$('#fall').onclick = replaceAll;
+$('#fclose').onclick = closeFind;
+for (const id of ['fcase', 'fword']) $('#' + id).onclick = e => { const b = e.currentTarget; b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); runFind(); fq.focus(); };
 
 /* ── chrome behaviour ─────────────────────────────────────────────────── */
 addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY < 70));
@@ -1537,6 +1677,7 @@ menuButton('bFile', () => [
   { label: 'Open…', hint: '⌘O', data: 'data-act="open"', act: () => $('#picker').click() },
   { label: 'Save', hint: '⌘S', data: 'data-act="save"', act: saveMd },
   '-',
+  { label: 'Find and replace', hint: '⌘F', data: 'data-act="find"', act: openFind },
   { label: 'Copy markdown', data: 'data-act="copy"', act: copySource },
   { label: 'Export HTML', hint: '⌘⇧E', data: 'data-act="html"', act: exportHtml },
   { label: 'Print or PDF', hint: '⌘P', data: 'data-act="print"', act: () => print() },

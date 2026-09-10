@@ -215,6 +215,19 @@ the screenshot checks the value. Export mirrors all three with the same
 counters on `<pre class="linenos">` (one `<span class="ln">` per line, cut
 with `hlSplit`), `body.hnums` and `body.eqnos`.
 
+## Find and replace
+
+`#find` (⌘F, File ▸ Find) searches `text`, so folded tables and code are
+included. `runFind()` collects [start, end] offsets and picks the match at or
+after the caret; `paintFind()` builds one Range per match from
+`textNodeMap()` (every text node with its offset, data-x skipped) and hands
+them to `CSS.highlights` as `sumi-find` and `sumi-find-current`. Nothing is
+inserted into the DOM. `gotoMatch()` sets the selection and calls
+`updateActive()`, which unfolds a block the match sits in; the query input
+keeps focus. `afterChange()` reruns the search while the bar is open.
+Replace one and Replace all are single `setText` calls, so each is one undo
+step. Without the Highlight API the count and the selection still work.
+
 ## Toolbar menus
 
 The bar is five buttons: View, Theme, Page, File and help. Each menu button
@@ -264,6 +277,7 @@ node test/cdp.mjs http://localhost:8765/test/docs.html       # documents: migrat
 node test/cdp.mjs http://localhost:8765/test/history.html    # versions, diff, restore, thinning, backup round trip
 node test/cdp.mjs http://localhost:8765/test/alerts.html     # GitHub alerts, all five kinds, editor and export
 node test/cdp.mjs http://localhost:8765/test/demo.html       # demo.md: every block and inline construct, round-trip, export
+node test/cdp.mjs http://localhost:8765/test/find.html       # find and replace
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
@@ -327,5 +341,4 @@ known caret offset survives a render.
 ## Ideas not yet built
 
 - Tidy/align table source (`⌘⇧|`)
-- Command palette
 - Vendored offline build (~1.5 MB with KaTeX + Mermaid inlined)
