@@ -66,6 +66,7 @@ Add a new block type by giving it a `blk`, a `kind`, and a branch in
 
 | Region | What lives there |
 |---|---|
+| `demo.md` | every supported construct in one document; `test/demo.html` loads it and checks each renders and exports |
 | `<style>` tokens | CSS custom properties; the default (Paper) values |
 | `<style>` themes | one `html[data-theme="…"]` block per built-in theme |
 | `<style>` writing surface | `.line`, `.tok` folding, block/preview/fold rules |
@@ -262,6 +263,7 @@ node test/cdp.mjs http://localhost:8765/test/source.html     # source mode
 node test/cdp.mjs http://localhost:8765/test/docs.html       # documents: migration, drawer, switching, two tabs
 node test/cdp.mjs http://localhost:8765/test/history.html    # versions, diff, restore, thinning, backup round trip
 node test/cdp.mjs http://localhost:8765/test/alerts.html     # GitHub alerts, all five kinds, editor and export
+node test/cdp.mjs http://localhost:8765/test/demo.html       # demo.md: every block and inline construct, round-trip, export
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open

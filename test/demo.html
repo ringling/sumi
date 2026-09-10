@@ -1,0 +1,55 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(500); };
+(async()=>{
+  const md=await (await fetch('/demo.md')).text();
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(md,'demo.md');
+  let t=0; while((!$('.hljs-keyword')||!$('.katex')||!$('.prev svg'))&&t++<60) await sleep(250);
+  const lines=$$('#editor .line');
+  ok(lines.length===md.split('\n').length,'line count matches the file: '+lines.length);
+  const srcLines=md.split('\n'); let bad=[];
+  lines.forEach((el,i)=>{ const src=el.querySelector('.src'); const txt=src?src.textContent:[...el.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join(''); if(txt!==srcLines[i]) bad.push(i); });
+  ok(bad.length===0,'every line round-trips its source text'+(bad.length?' — mismatches at '+bad.slice(0,8).join(','):''));
+  const has=(cls,n=1)=>$$('#editor .line.'+cls).length>=n;
+  const kinds={fm:'front matter',toc:'[TOC]',h1:'h1',h2:'h2',h3:'h3',h4:'h4',h5:'h5',h6:'h6',setext:'setext underline',hr:'rules',quote:'quotes','a-note':'NOTE','a-tip':'TIP','a-important':'IMPORTANT','a-warning':'WARNING','a-caution':'CAUTION',ul:'bullets',ol:'numbers',task:'tasks','fence.open':'fences',code:'code lines',trow:'table rows',mathblk:'maths blocks',rawhtml:'raw html',refdef:'definitions'};
+  for(const [c,name] of Object.entries(kinds)) ok(has(c),'block: '+name);
+  ok($$('#editor .line.h.h1').length===2,'ATX and setext h1 both present');
+  ok(!!$('#editor .fmcard')&&!!$('#editor ul.toc')&&$$('#editor ul.toc li').length>=15,'front matter card and TOC preview');
+  ok($$('#editor .line.hr').length===3,'three rules');
+  const inl={'strong':'bold','em':'italic','del':'strikethrough','mark':'highlight','code':'code span','a[href^="https://"]':'links','a[href^="#"]':'internal links','sup.fn':'footnote refs','.kx':'inline maths','img.mdimg':'image'};
+  for(const [sel,name] of Object.entries(inl)) ok(!!$('#editor .line '+sel),'inline: '+name);
+  ok($$('#editor .line.trow').length===5&&!!$('#editor .prev table')&&$$('#editor .prev table td').length===9,'table folds to a 3×3 grid');
+  ok($$('#editor .prev .katex').length>=2,'display maths rendered by KaTeX');
+  ok($$('#editor .prev svg').length>=2,'both mermaid diagrams drawn');
+  ok($$('#editor .line.code .hljs-keyword').length>=3,'code highlighted');
+  ok(!!$('#editor .line.task.done'),'a done task');
+  ok(!$('#editor .line.a-foo'),'no unknown alert kind');
+  // regression: editing anywhere must not alter footnote definition lines
+  const fnIdx=srcLines.findIndex(l=>l.startsWith('[^one]:'));
+  const r=d.createRange(); r.setStart($$('#editor .line')[2].firstChild,0); r.collapse(true); const sel=w.getSelection(); sel.removeAllRanges(); sel.addRange(r); $('#editor').focus();
+  d.execCommand('insertText',false,'Z'); await sleep(200); d.execCommand('insertText',false,'Z'); await sleep(200);
+  const fnLine=$$('#editor .line')[fnIdx];
+  ok([...fnLine.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join('')===srcLines[fnIdx],'footnote definition unchanged after edits elsewhere: '+JSON.stringify([...fnLine.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join('')));
+  d.execCommand('undo'); d.execCommand('undo'); await sleep(200);
+  // export
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  mclick('bFile','[data-act=html]'); await sleep(200); const html=await blob.text();
+  const exp={'<h1 id="sumi-feature-demo">':'h1 with id','<h6':'h6','<ul class="toc">':'toc','<table>':'table','<pre><code class="language-js">':'js fence','<pre><code>':'plain fence','<blockquote class="alert a-caution">':'caution alert','<ol class="footnotes">':'footnotes','class="mathblock"':'maths block','<pre class="mermaid">':'mermaid','<details>':'raw html passthrough','<hr>':'rule','<mark>':'highlight','<del>':'strike','<img':'image','<br>':'hard break','<ul class="task-list">':'task list','<h1 id="setext-heading">':'setext heading id'};
+  for(const [needle,name] of Object.entries(exp)) ok(html.includes(needle),'export: '+name);
+  ok(!/title: Sumi feature demo/.test(html),'export drops front matter');
+  ok(!/\[\^one\]/.test(html)&&/id="fn-one"/.test(html),'export resolves footnotes');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>
