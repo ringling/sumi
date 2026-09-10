@@ -46,9 +46,11 @@ land in the history via `setText()`.
 **4. `render()` only rewrites lines whose key changed.**
 
 The key is `JSON.stringify(flags[i]) + '\0' + lineText`. Rewriting a line resets
-its `className`, which drops `.active`, `.fold` and `.near` — `updateActive()`
-re-adds them and must be called after any render. This already caused one bug
-(syntax flickering away while typing on the active line).
+its `className`; `render()` carries `.active`, `.near` and `.fold` over from
+the old element and `updateActive()` recomputes them afterwards. Dropping
+them during the rewrite made the fresh `.tok` spans animate open on every
+keystroke, so the text slid under the caret for 120 ms (seen as the caret
+jumping on an active heading).
 
 **5. Block previews use the fold mechanism, not a different one.**
 

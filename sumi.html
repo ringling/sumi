@@ -1294,7 +1294,11 @@ function render(text) {
     const key = flags[i].k + '\u0000' + lines[i];
     if (el.dataset.k === key) continue;
     el.dataset.k = key;
-    el.className = 'line ' + (flags[i].cls || '');
+    /* keep the caret-state classes through the rewrite: otherwise the new .tok
+       spans start folded and animate open once updateActive() re-adds .active,
+       and the text slides under the caret on every keystroke */
+    const keep = ['active', 'near', 'fold'].filter(c => el.classList.contains(c)).map(c => ' ' + c).join('');
+    el.className = 'line ' + (flags[i].cls || '') + keep;
     if (flags[i].ind) el.style.setProperty('--ind', flags[i].ind);
     else el.style.removeProperty('--ind');
     el.innerHTML = renderLine(lines[i], flags[i]) || '<br>';
