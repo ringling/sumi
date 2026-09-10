@@ -216,6 +216,16 @@ the screenshot checks the value. Export mirrors all three with the same
 counters on `<pre class="linenos">` (one `<span class="ln">` per line, cut
 with `hlSplit`), `body.hnums` and `body.eqnos`.
 
+## Emoji shortcodes
+
+`EMOJI` is a curated table of about 650 GitHub names (one template string,
+`name glyph|…`). `inline()` folds `:name:` to a `data-x` glyph span, plain
+glyph on export; unknown names stay text, and nothing happens inside code.
+`emojiCheck()` runs from `afterChange` and on selection change while open:
+`:xx` before the caret opens `#emoji` with up to eight matches (prefix first),
+↑ ↓ Enter Tab Esc handled in the keydown handler before anything else, and
+accepting is one `setText`.
+
 ## Table commands
 
 Edit ▸ Tidy table (⌘⇧|), Add row below (⌘⏎), Add column after, Delete row,
@@ -308,6 +318,7 @@ node test/cdp.mjs http://localhost:8765/test/demo.html       # demo.md: every bl
 node test/cdp.mjs http://localhost:8765/test/find.html       # find and replace
 node test/cdp.mjs http://localhost:8765/test/pair.html       # auto-pairing, typed with real key events
 node test/cdp.mjs http://localhost:8765/test/table.html      # table commands and Tab navigation
+node test/cdp.mjs http://localhost:8765/test/emoji.html      # shortcodes and the completion popup
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
@@ -351,7 +362,7 @@ known caret offset survives a render.
 
 ## Known gaps
 
-- Emoji shortcodes (`:smile:`) — needs an inline table, not implemented.
+- Emoji shortcodes cover a curated set, not GitHub's full list.
 - Front matter is parsed naively: top-level `key: value` rows and indented
   `- item` lists only. Anything else shows in the source but not in the card.
 - Raw HTML is shown as source in the editor (rendering it would inject untracked

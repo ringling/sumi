@@ -1,0 +1,55 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
+const real=async t=>{ const n=(window.__typed||0)+1; (window.__keys=window.__keys||[]).push(t); while((window.__typed||0)<n) await sleep(30); await sleep(120); };
+const srcText=l=>[...l.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join('');
+const caretEnd=i=>{ const el=$$('#editor .line')[i]; const r=d.createRange(); r.selectNodeContents(el); r.collapse(false); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(['Ship it :rocket: and :+1:','Unknown :nope: stays, so does 10:30: time','','```','no :smile: in code','```','','type here'].join('\n'),'e.md');
+  const L=$$('#editor .line');
+  const emos=L[0].querySelectorAll('.emo');
+  ok(emos.length===2&&emos[0].textContent==='🚀'&&emos[1].textContent==='👍'&&emos[0].hasAttribute('data-x'),'shortcodes render as data-x glyphs');
+  ok(srcText(L[0])==='Ship it :rocket: and :+1:','line source intact');
+  caretEnd(7); await sleep(150);
+  ok(w.getComputedStyle(L[0].querySelector('.tok')).fontSize==='0px','the :rocket: token is folded once the caret leaves the line');
+  ok(!L[1].querySelector('.emo')&&srcText(L[1]).includes(':nope:'),'unknown names and times stay text');
+  ok(!L[4].querySelector('.emo'),'no emoji inside code');
+  // completion popup with real typing
+  caretEnd(7); await real(' :sm');
+  ok($('#emoji').classList.contains('show')&&$$('#emoji div').length>=3&&$$('#emoji div')[0].textContent.includes(':smile:'),'popup lists matches for :sm, smile first: '+$$('#emoji div').map(x=>x.textContent).join(' ').slice(0,60));
+  key('ArrowDown'); await sleep(30);
+  ok($$('#emoji div')[1].classList.contains('on'),'arrow down moves the choice');
+  key('ArrowUp'); await sleep(30);
+  key('Enter'); await sleep(200);
+  ok(srcText($$('#editor .line')[7])==='type here :smile:'&&!$('#emoji').classList.contains('show'),'Enter completes to :smile: and closes: '+JSON.stringify(srcText($$('#editor .line')[7])));
+  ok($$('#editor .line')[7].querySelector('.emo')&&$$('#editor .line')[7].querySelector('.emo').textContent==='😄','completed code renders');
+  await real(' :roc');
+  ok($('#emoji').classList.contains('show'),'popup again for :roc');
+  key('Escape'); await sleep(30);
+  ok(!$('#emoji').classList.contains('show')&&srcText($$('#editor .line')[7]).endsWith(':roc'),'Escape closes without inserting');
+  await real('ket:'); await sleep(100);
+  ok($$('#editor .line')[7].querySelectorAll('.emo').length===2,'typing the full code by hand renders too');
+  await real(' :zz'); key('Tab'); await sleep(200);
+  ok(srcText($$('#editor .line')[7]).endsWith(':zzz:'),'Tab also completes: '+JSON.stringify(srcText($$('#editor .line')[7]).slice(-12)));
+  key('z',{metaKey:true}); await sleep(100);
+  ok(!srcText($$('#editor .line')[7]).endsWith(':zzz:'),'completion is one undo step');
+  // export
+  let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  mclick('bFile','[data-act=html]'); await sleep(150); const html=await blob.text();
+  ok(/Ship it 🚀 and 👍/.test(html)&&/Unknown :nope: stays/.test(html)&&/no :smile: in code/.test(html),'export emits glyphs, keeps unknown names and code');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

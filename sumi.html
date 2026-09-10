@@ -139,6 +139,16 @@ button.b:hover{background:var(--paper-2); color:var(--ink)}
 button.b[aria-pressed="true"]{background:var(--accent); color:var(--paper)}
 button.b:focus-visible, #name:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
 .dot{width:1px;height:16px;background:var(--rule);margin:0 6px}
+.emo{font-style:normal}
+#emoji{
+  position:fixed; z-index:35; display:none; min-width:12em; padding:4px;
+  background:var(--paper); border:1px solid var(--rule); border-radius:8px; box-shadow:var(--shadow);
+  font-family:var(--sans); font-size:12.5px; color:var(--ink-soft);
+}
+#emoji.show{display:block}
+#emoji div{display:flex; gap:10px; align-items:center; padding:4px 8px; border-radius:5px; cursor:pointer}
+#emoji div.on,#emoji div:hover{background:var(--paper-2); color:var(--ink)}
+#emoji div span:first-child{width:1.4em; text-align:center; font-size:16px}
 #find{
   position:fixed; top:54px; right:16px; z-index:30; display:none;
   background:var(--paper); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow);
@@ -389,7 +399,7 @@ mark{background:var(--mark); color:inherit; padding:.05em .15em; border-radius:3
   body.source .line{padding-left:0}
   body.source .line.fold{min-height:calc(1em * var(--lh))}
   body.source .line.fold .src{display:inline}
-  body.source .prev,body.source .kx,body.source .fn,body.source .alabel,body.source .rule,
+  body.source .prev,body.source .kx,body.source .fn,body.source .alabel,body.source .rule,body.source .emo,
   body.source .mdimg,body.source .eqno{display:none!important}
   body.source .h{font-family:inherit; font-size:inherit; margin:0; letter-spacing:0; line-height:inherit; color:inherit}
   body.source .h::before,body.source .ul::before,body.source .task::before,body.source .line.code::before{content:none}
@@ -488,7 +498,7 @@ kbd{
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media print{
-  #bar,#outline,#docs,#hist,#diff,#count,#toast,#help,#menu,#find{display:none!important}
+  #bar,#outline,#docs,#hist,#diff,#count,#toast,#help,#menu,#find,#emoji{display:none!important}
   .fmcard{display:none}
   html,html[data-theme]{--paper:#fff; --paper-2:#f0f0f0; --ink:#000; --ink-soft:#444; --ink-faint:#777; --rule:#ccc; --code-bg:#f3f3f3; --mark:#efe9a4}
   /* compact, Typora-like page: sans, 10pt, tight leading, half-height blank lines */
@@ -531,6 +541,7 @@ kbd{
 <nav id="hist" aria-label="History"></nav>
 <div id="diff" role="dialog" aria-label="Version diff"><div class="card"></div></div>
 <div id="menu" role="menu"></div>
+<div id="emoji" role="listbox" aria-label="Emoji"></div>
 <div id="find" role="search" aria-label="Find and replace">
   <div class="row">
     <input id="fq" placeholder="Find" aria-label="Find" spellcheck="false" autocomplete="off">
@@ -560,6 +571,7 @@ kbd{
     <tr><td><kbd>⌘⇧K</kbd></td><td>inline code</td></tr>
     <tr><td><kbd>⌘1</kbd>–<kbd>⌘6</kbd> <kbd>⌘0</kbd></td><td>heading level, plain paragraph</td></tr>
     <tr><td><kbd>⌘⇧L</kbd></td><td>cycle list type — bullet, numbered, task, plain</td></tr>
+    <tr><td><kbd>:smile:</kbd></td><td>emoji shortcodes (GitHub names, a curated set); a popup completes them as you type <kbd>:sm</kbd></td></tr>
     <tr><td>( [ { " ` * _</td><td>auto-paired: the closer is inserted, a selection is wrapped, typing the closer steps over it, backspace removes an empty pair. Off in code; View ▸ Auto-pair turns it off</td></tr>
     <tr><td><kbd>⌘F</kbd> <kbd>⌘G</kbd> <kbd>⌘⇧G</kbd></td><td>find and replace; next and previous match. Searches the source, so folded tables and code are included</td></tr>
     <tr><td><kbd>Tab</kbd> <kbd>⇧Tab</kbd></td><td>indent, outdent list item</td></tr>
@@ -608,6 +620,11 @@ const safeURL = u => /^(https?:|mailto:|data:image\/|#|\.|\/)/i.test(u) ? u : '#
    clean=true  → export mode: syntax dropped
    Anything rendered that is NOT part of the source carries data-x, so the
    text walkers skip it.                                                  */
+/* Emoji shortcodes: a curated subset of GitHub's names (about 300). Rendered
+   as a data-x glyph next to the folded :name: token, plain glyph on export. */
+const EMOJI = Object.fromEntries(`smile 😄|smiley 😃|grinning 😀|grin 😁|laughing 😆|satisfied 😆|joy 😂|rofl 🤣|sweat_smile 😅|blush 😊|innocent 😇|slightly_smiling_face 🙂|upside_down_face 🙃|wink 😉|relieved 😌|heart_eyes 😍|kissing_heart 😘|kissing 😗|yum 😋|stuck_out_tongue 😛|stuck_out_tongue_winking_eye 😜|zany_face 🤪|stuck_out_tongue_closed_eyes 😝|money_mouth_face 🤑|hugs 🤗|hand_over_mouth 🤭|shushing_face 🤫|thinking 🤔|zipper_mouth_face 🤐|raised_eyebrow 🤨|neutral_face 😐|expressionless 😑|no_mouth 😶|smirk 😏|unamused 😒|roll_eyes 🙄|grimacing 😬|lying_face 🤥|relaxed ☺️|pensive 😔|sleepy 😪|drooling_face 🤤|sleeping 😴|mask 😷|face_with_thermometer 🤒|face_with_head_bandage 🤕|nauseated_face 🤢|vomiting_face 🤮|sneezing_face 🤧|hot_face 🥵|cold_face 🥶|woozy_face 🥴|dizzy_face 😵|exploding_head 🤯|cowboy_hat_face 🤠|partying_face 🥳|sunglasses 😎|nerd_face 🤓|monocle_face 🧐|confused 😕|worried 😟|slightly_frowning_face 🙁|frowning_face ☹️|open_mouth 😮|hushed 😯|astonished 😲|flushed 😳|pleading_face 🥺|frowning 😦|anguished 😧|fearful 😨|cold_sweat 😰|disappointed_relieved 😥|cry 😢|sob 😭|scream 😱|confounded 😖|persevere 😣|disappointed 😞|sweat 😓|weary 😩|tired_face 😫|yawning_face 🥱|triumph 😤|rage 😡|pout 😡|angry 😠|cursing_face 🤬|smiling_imp 😈|imp 👿|skull 💀|skull_and_crossbones ☠️|poop 💩|hankey 💩|clown_face 🤡|ghost 👻|alien 👽|robot 🤖|smiley_cat 😺|smile_cat 😸|joy_cat 😹|heart_eyes_cat 😻|see_no_evil 🙈|hear_no_evil 🙉|speak_no_evil 🙊|kiss 💋|love_letter 💌|heart ❤️|orange_heart 🧡|yellow_heart 💛|green_heart 💚|blue_heart 💙|purple_heart 💜|black_heart 🖤|white_heart 🤍|brown_heart 🤎|broken_heart 💔|heartbeat 💓|heartpulse 💗|sparkling_heart 💖|two_hearts 💕|revolving_hearts 💞|cupid 💘|gift_heart 💝|heart_decoration 💟|100 💯|anger 💢|boom 💥|collision 💥|dizzy 💫|sweat_drops 💦|dash 💨|hole 🕳️|bomb 💣|speech_balloon 💬|thought_balloon 💭|zzz 💤|wave 👋|raised_back_of_hand 🤚|hand ✋|raised_hand ✋|vulcan_salute 🖖|ok_hand 👌|pinching_hand 🤏|v ✌️|crossed_fingers 🤞|love_you_gesture 🤟|metal 🤘|call_me_hand 🤙|point_left 👈|point_right 👉|point_up_2 👆|middle_finger 🖕|point_down 👇|point_up ☝️|+1 👍|thumbsup 👍|-1 👎|thumbsdown 👎|fist ✊|facepunch 👊|punch 👊|fist_left 🤛|fist_right 🤜|clap 👏|raised_hands 🙌|open_hands 👐|palms_up_together 🤲|handshake 🤝|pray 🙏|writing_hand ✍️|nail_care 💅|selfie 🤳|muscle 💪|eyes 👀|eye 👁️|brain 🧠|tongue 👅|lips 👄|ear 👂|nose 👃|baby 👶|boy 👦|girl 👧|man 👨|woman 👩|older_man 👴|older_woman 👵|police_officer 👮|detective 🕵️|guard 💂|construction_worker 👷|prince 🤴|princess 👸|santa 🎅|mage 🧙|superhero 🦸|zombie 🧟|bow 🙇|shrug 🤷|facepalm 🤦|raising_hand 🙋|dancer 💃|man_dancing 🕺|walking 🚶|running 🏃|family 👪|couple 👫|two_men_holding_hands 👬|two_women_holding_hands 👭|footprints 👣|dog 🐶|cat 🐱|mouse 🐭|hamster 🐹|rabbit 🐰|fox_face 🦊|bear 🐻|panda_face 🐼|koala 🐨|tiger 🐯|lion 🦁|cow 🐮|pig 🐷|frog 🐸|monkey_face 🐵|monkey 🐒|chicken 🐔|penguin 🐧|bird 🐦|baby_chick 🐤|hatching_chick 🐣|duck 🦆|eagle 🦅|owl 🦉|bat 🦇|wolf 🐺|boar 🐗|horse 🐴|unicorn 🦄|bee 🐝|bug 🐛|butterfly 🦋|snail 🐌|ant 🐜|spider 🕷️|turtle 🐢|snake 🐍|lizard 🦎|octopus 🐙|squid 🦑|shrimp 🦐|crab 🦀|fish 🐟|tropical_fish 🐠|dolphin 🐬|whale 🐳|shark 🦈|crocodile 🐊|elephant 🐘|camel 🐪|giraffe 🦒|kangaroo 🦘|sheep 🐑|goat 🐐|dragon 🐉|dinosaur 🦕|t-rex 🦖|bouquet 💐|cherry_blossom 🌸|rose 🌹|hibiscus 🌺|sunflower 🌻|tulip 🌷|seedling 🌱|evergreen_tree 🌲|deciduous_tree 🌳|palm_tree 🌴|cactus 🌵|herb 🌿|shamrock ☘️|four_leaf_clover 🍀|maple_leaf 🍁|fallen_leaf 🍂|leaves 🍃|mushroom 🍄|apple 🍎|green_apple 🍏|pear 🍐|tangerine 🍊|lemon 🍋|banana 🍌|watermelon 🍉|grapes 🍇|strawberry 🍓|cherries 🍒|peach 🍑|pineapple 🍍|kiwi_fruit 🥝|avocado 🥑|tomato 🍅|eggplant 🍆|carrot 🥕|corn 🌽|hot_pepper 🌶️|potato 🥔|bread 🍞|croissant 🥐|cheese 🧀|egg 🥚|bacon 🥓|hamburger 🍔|fries 🍟|pizza 🍕|hotdog 🌭|taco 🌮|burrito 🌯|ramen 🍜|spaghetti 🍝|sushi 🍣|rice 🍚|curry 🍛|bento 🍱|cookie 🍪|cake 🍰|birthday 🎂|cupcake 🧁|pie 🥧|chocolate_bar 🍫|candy 🍬|lollipop 🍭|doughnut 🍩|ice_cream 🍨|icecream 🍦|honey_pot 🍯|coffee ☕|tea 🍵|beer 🍺|beers 🍻|wine_glass 🍷|cocktail 🍸|tropical_drink 🍹|champagne 🍾|clinking_glasses 🥂|milk_glass 🥛|cup_with_straw 🥤|fork_and_knife 🍴|plate_with_cutlery 🍽️|earth_africa 🌍|earth_americas 🌎|earth_asia 🌏|globe_with_meridians 🌐|world_map 🗺️|mountain ⛰️|volcano 🌋|camping 🏕️|beach_umbrella 🏖️|desert 🏜️|house 🏠|office 🏢|hospital 🏥|school 🏫|castle 🏰|church ⛪|mosque 🕌|statue_of_liberty 🗽|tokyo_tower 🗼|bridge_at_night 🌉|sunrise 🌅|city_sunset 🌇|night_with_stars 🌃|rainbow 🌈|sunny ☀️|cloud ☁️|partly_sunny ⛅|zap ⚡|snowflake ❄️|snowman ⛄|fire 🔥|droplet 💧|ocean 🌊|umbrella ☔|wind_face 🌬️|tornado 🌪️|fog 🌫️|full_moon 🌕|new_moon 🌑|crescent_moon 🌙|star ⭐|star2 🌟|stars 🌠|sparkles ✨|comet ☄️|milky_way 🌌|jack_o_lantern 🎃|christmas_tree 🎄|fireworks 🎆|sparkler 🎇|balloon 🎈|tada 🎉|confetti_ball 🎊|gift 🎁|ribbon 🎀|ticket 🎫|trophy 🏆|medal_sports 🏅|1st_place_medal 🥇|2nd_place_medal 🥈|3rd_place_medal 🥉|soccer ⚽|basketball 🏀|football 🏈|baseball ⚾|tennis 🎾|volleyball 🏐|8ball 🎱|ping_pong 🏓|golf ⛳|ski 🎿|dart 🎯|video_game 🎮|joystick 🕹️|game_die 🎲|chess_pawn ♟️|jigsaw 🧩|art 🎨|musical_note 🎵|notes 🎶|microphone 🎤|headphones 🎧|guitar 🎸|violin 🎻|drum 🥁|trumpet 🎺|saxophone 🎷|piano 🎹|clapper 🎬|movie_camera 🎥|camera 📷|video_camera 📹|tv 📺|radio 📻|car 🚗|taxi 🚕|bus 🚌|truck 🚚|tractor 🚜|bike 🚲|motorcycle 🏍️|rocket 🚀|airplane ✈️|helicopter 🚁|ship 🚢|sailboat ⛵|anchor ⚓|train 🚋|steam_locomotive 🚂|bullettrain_front 🚅|metro 🚇|traffic_light 🚥|construction 🚧|fuelpump ⛽|watch ⌚|hourglass ⌛|alarm_clock ⏰|stopwatch ⏱️|clock1 🕐|calendar 📆|date 📅|iphone 📱|telephone ☎️|phone ☎️|computer 💻|desktop_computer 🖥️|keyboard ⌨️|printer 🖨️|floppy_disk 💾|cd 💿|dvd 📀|battery 🔋|electric_plug 🔌|bulb 💡|flashlight 🔦|candle 🕯️|satellite 📡|microscope 🔬|telescope 🔭|books 📚|book 📖|notebook 📓|page_facing_up 📄|newspaper 📰|bookmark 🔖|label 🏷️|moneybag 💰|dollar 💵|euro 💶|pound 💷|yen 💴|credit_card 💳|chart_with_upwards_trend 📈|chart_with_downwards_trend 📉|bar_chart 📊|clipboard 📋|pushpin 📌|paperclip 📎|scissors ✂️|straight_ruler 📏|triangular_ruler 📐|lock 🔒|unlock 🔓|key 🔑|old_key 🗝️|hammer 🔨|pick ⛏️|hammer_and_wrench 🛠️|wrench 🔧|nut_and_bolt 🔩|gear ⚙️|link 🔗|chains ⛓️|magnet 🧲|test_tube 🧪|dna 🧬|pill 💊|syringe 💉|stethoscope 🩺|bath 🛁|toilet 🚽|shower 🚿|bed 🛏️|door 🚪|package 📦|mailbox 📫|email 📧|envelope ✉️|inbox_tray 📥|outbox_tray 📤|memo 📝|pencil2 ✏️|pen 🖊️|fountain_pen 🖋️|paintbrush 🖌️|crayon 🖍️|mag 🔍|mag_right 🔎|file_folder 📁|open_file_folder 📂|card_index_dividers 🗂️|wastebasket 🗑️|shield 🛡️|crossed_swords ⚔️|bow_and_arrow 🏹|gun 🔫|crystal_ball 🔮|gem 💎|ring 💍|crown 👑|tophat 🎩|mortar_board 🎓|eyeglasses 👓|dark_sunglasses 🕶️|necktie 👔|shirt 👕|tshirt 👕|jeans 👖|dress 👗|kimono 👘|bikini 👙|high_heel 👠|athletic_shoe 👟|boot 👢|handbag 👜|briefcase 💼|school_satchel 🎒|lipstick 💄|heavy_check_mark ✔️|white_check_mark ✅|ballot_box_with_check ☑️|x ❌|negative_squared_cross_mark ❎|heavy_plus_sign ➕|heavy_minus_sign ➖|heavy_multiplication_x ✖️|heavy_division_sign ➗|question ❓|grey_question ❔|exclamation ❗|grey_exclamation ❕|bangbang ‼️|interrobang ⁉️|warning ⚠️|no_entry ⛔|no_entry_sign 🚫|recycle ♻️|copyright ©️|registered ®️|tm ™️|hash #️⃣|zero 0️⃣|one 1️⃣|two 2️⃣|three 3️⃣|arrow_up ⬆️|arrow_down ⬇️|arrow_left ⬅️|arrow_right ➡️|arrow_upper_right ↗️|arrow_lower_right ↘️|arrows_counterclockwise 🔄|repeat 🔁|infinity ♾️|checkered_flag 🏁|triangular_flag_on_post 🚩|rainbow_flag 🏳️‍🌈|white_flag 🏳️|black_flag 🏴|red_circle 🔴|orange_circle 🟠|yellow_circle 🟡|green_circle 🟢|large_blue_circle 🔵|purple_circle 🟣|black_circle ⚫|white_circle ⚪|red_square 🟥|green_square 🟩|blue_square 🟦|black_large_square ⬛|white_large_square ⬜|small_red_triangle 🔺|small_red_triangle_down 🔻|diamond_shape_with_a_dot_inside 💠|loud_sound 🔊|mute 🔇|bell 🔔|no_bell 🔕|mega 📣|loudspeaker 📢|hourglass_flowing_sand ⏳|wheelchair ♿|denmark 🇩🇰|jp 🇯🇵|us 🇺🇸|gb 🇬🇧|de 🇩🇪|fr 🇫🇷|es 🇪🇸|it 🇮🇹|se 🇸🇪|no 🇳🇴|fi 🇫🇮|eu 🇪🇺|cn 🇨🇳|kr 🇰🇷|in 🇮🇳|br 🇧🇷|ca 🇨🇦|au 🇦🇺`.split('|').map(x => { const i = x.indexOf(' '); return [x.slice(0, i), x.slice(i + 1)]; }));
+const EMOJI_NAMES = Object.keys(EMOJI);
+
 const ESCAPABLE = '\\`*_{}[]()#+-.!|>~=$"\'<:/';
 let refs = {}, fnDefs = [], fnNum = {}, headings = [];
 
@@ -670,6 +687,10 @@ function inline(s, clean) {
 
     if (c === '\\' && i + 1 < s.length && ESCAPABLE.includes(s[i + 1])) {
       out += T('\\') + esc(s[i + 1]); i += 2; continue; }
+
+    if (c === ':' && (m = /^:([a-z0-9_+\-]+):/.exec(r)) && EMOJI[m[1]]) {
+      out += clean ? EMOJI[m[1]] : T(m[0]) + `<span class="emo" data-x contenteditable="false">${EMOJI[m[1]]}</span>`;
+      i += m[0].length; continue; }
 
     if ((m = /^(`+)([^`]+)\1(?!`)/.exec(r))) {
       out += T(m[1]) + '<code>' + esc(m[2]) + '</code>' + T(m[1]); i += m[0].length; continue; }
@@ -1340,6 +1361,7 @@ function afterChange(save = true) {
   updateCount();
   buildOutline();
   if (find.open) runFind();
+  emojiCheck();
   renderPreviews(false);
   clearTimeout(prevTimer);
   prevTimer = setTimeout(() => renderPreviews(true), 450);
@@ -1581,7 +1603,7 @@ editor.addEventListener('paste', e => {
   if (t) insert(t.replace(/\r\n?/g, '\n'));
 });
 document.addEventListener('selectionchange', () => {
-  if (document.activeElement === editor) updateActive();
+  if (document.activeElement === editor) { updateActive(); if (emo.open) emojiCheck(); }
 });
 editor.addEventListener('click', e => {
   const link = e.target.closest && e.target.closest('a[href^="#"]');
@@ -1605,7 +1627,12 @@ editor.addEventListener('click', e => {
 
 const mod = e => e.metaKey || e.ctrlKey;
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { $('#help').classList.remove('show'); $('#diff').classList.remove('show'); closeMenu(); if (find.open) closeFind(); return; }
+  if (e.key === 'Escape') { $('#help').classList.remove('show'); $('#diff').classList.remove('show'); closeMenu(); if (find.open) closeFind(); emojiClose(); return; }
+  if (emo.open && document.activeElement === editor) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); emojiMove(1); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); emojiMove(-1); return; }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); emojiAccept(); return; }
+  }
   if (!mod(e)) {
     if (e.key === 'Tab' && document.activeElement === editor) { e.preventDefault(); if (!tableNav(e.shiftKey)) indent(e.shiftKey); }
     return;
@@ -1642,6 +1669,43 @@ document.addEventListener('keydown', e => {
   }
   if (/^[0-6]$/.test(e.key)) { e.preventDefault(); heading(+e.key); return; }
 });
+
+/* ── emoji completion ─────────────────────────────────────────────────────
+   After each edit, if the text before the caret ends in :na (two letters or
+   more), a popup lists matching shortcodes; ↑ ↓ choose, Enter or Tab insert
+   :name:, Esc closes. It never writes anything until accepted. */
+const emo = { open: false, items: [], sel: 0, start: 0 };
+function emojiCheck() {
+  const s = selRange(); if (!s || s.start !== s.end || composing) return emojiClose();
+  const lineStart = text.lastIndexOf('\n', s.start - 1) + 1;
+  const m = /(^|[^a-z0-9_+\-]):([a-z0-9_+\-]{2,})$/i.exec(text.slice(lineStart, s.start));
+  if (!m) return emojiClose();
+  const f = flags[text.slice(0, s.start).split('\n').length - 1];
+  if (f && /^(code|fence|icode|mathsrc|mathfence|fm)$/.test(f.type)) return emojiClose();
+  const q = m[2].toLowerCase();
+  const items = EMOJI_NAMES.filter(n => n.startsWith(q)).concat(EMOJI_NAMES.filter(n => !n.startsWith(q) && n.includes(q))).slice(0, 8);
+  if (!items.length) return emojiClose();
+  emo.open = true; emo.items = items; emo.sel = 0; emo.start = s.start - q.length - 1;
+  const box = $('#emoji');
+  box.innerHTML = items.map((n, i) => `<div class="${i === 0 ? 'on' : ''}" data-i="${i}"><span>${EMOJI[n]}</span><span>:${n}:</span></div>`).join('');
+  const rect = getSelection().getRangeAt(0).getBoundingClientRect();
+  box.classList.add('show');
+  box.style.left = Math.min(rect.left, innerWidth - box.offsetWidth - 12) + 'px';
+  box.style.top = (rect.bottom + 6 + box.offsetHeight > innerHeight ? rect.top - box.offsetHeight - 6 : rect.bottom + 6) + 'px';
+}
+function emojiClose() { if (!emo.open) return; emo.open = false; $('#emoji').classList.remove('show'); }
+function emojiAccept(i = emo.sel) {
+  const name = emo.items[i]; if (!name) return;
+  const s = selRange(); if (!s) return;
+  const rep = ':' + name + ':';
+  emojiClose();
+  setText(text.slice(0, emo.start) + rep + text.slice(s.start), emo.start + rep.length);
+}
+function emojiMove(dir) {
+  emo.sel = (emo.sel + dir + emo.items.length) % emo.items.length;
+  $('#emoji').querySelectorAll('div').forEach((el, i) => el.classList.toggle('on', i === emo.sel));
+}
+$('#emoji').onmousedown = e => { const it = e.target.closest('[data-i]'); if (it) { e.preventDefault(); emojiAccept(+it.dataset.i); } };
 
 /* ── find & replace ───────────────────────────────────────────────────────
    Searches the raw source, so matches inside folded tables and code count.
