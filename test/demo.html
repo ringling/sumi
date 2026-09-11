@@ -35,6 +35,8 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
   ok($$('#editor .line.code .hljs-keyword').length>=3,'code highlighted');
   ok(!!$('#editor .line.task.done'),'a done task');
   ok(!$('#editor .line.a-foo'),'no unknown alert kind');
+  ok($$('#editor .line .emo').length>=6&&$$('#editor .line .emo')[0].textContent==='🚀','emoji shortcodes rendered');
+  ok(!/:nope:/.test([...$$('#editor .emo')].map(e=>e.textContent).join(''))&&$('#editor').textContent.includes(':nope:'),'unknown shortcode stays text');
   // regression: editing anywhere must not alter footnote definition lines
   const fnIdx=srcLines.findIndex(l=>l.startsWith('[^one]:'));
   const r=d.createRange(); r.setStart($$('#editor .line')[2].firstChild,0); r.collapse(true); const sel=w.getSelection(); sel.removeAllRanges(); sel.addRange(r); $('#editor').focus();
@@ -45,7 +47,7 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
   mclick('bFile','[data-act=html]'); await sleep(200); const html=await blob.text();
-  const exp={'<h1 id="sumi-feature-demo">':'h1 with id','<h6':'h6','<ul class="toc">':'toc','<table>':'table','<pre><code class="language-js">':'js fence','<pre><code>':'plain fence','<blockquote class="alert a-caution">':'caution alert','<ol class="footnotes">':'footnotes','class="mathblock"':'maths block','<pre class="mermaid">':'mermaid','<details>':'raw html passthrough','<hr>':'rule','<mark>':'highlight','<del>':'strike','<img':'image','<br>':'hard break','<ul class="task-list">':'task list','<h2 id="setext-heading">':'setext heading id'};
+  const exp={'<h1 id="sumi-feature-demo">':'h1 with id','<h6':'h6','<ul class="toc">':'toc','<table>':'table','<pre><code class="language-js">':'js fence','<pre><code>':'plain fence','<blockquote class="alert a-caution">':'caution alert','<ol class="footnotes">':'footnotes','class="mathblock"':'maths block','<pre class="mermaid">':'mermaid','<details>':'raw html passthrough','<hr>':'rule','<mark>':'highlight','<del>':'strike','<img':'image','<br>':'hard break','<ul class="task-list">':'task list','🚀 🎉 ✅ ⚠️ ☕':'emoji glyphs','<h2 id="setext-heading">':'setext heading id'};
   for(const [needle,name] of Object.entries(exp)) ok(html.includes(needle),'export: '+name);
   ok(!/title: Sumi feature demo/.test(html),'export drops front matter');
   ok(!/\[\^one\]/.test(html)&&/id="fn-one"/.test(html),'export resolves footnotes');

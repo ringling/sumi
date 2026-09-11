@@ -45,6 +45,8 @@ Footnotes[^one] are numbered in the order their definitions appear[^two]. Hover 
 
 Inline maths sits in the sentence: $e^{i\pi} + 1 = 0$, and $\sqrt{a^2 + b^2}$. A plain number like $5 is not maths.
 
+Emoji shortcodes use GitHub's names: :rocket: :tada: :white_check_mark: :warning: :coffee: :denmark:. Type a colon and two letters, such as `:sm`, and a popup offers completions; Enter or Tab inserts one. Unknown names such as :nope: stay as text.
+
 An image, here a small inline SVG so the demo works offline:
 
 ![A green square](data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxMjAnIGhlaWdodD0nNDAnPjxyZWN0IHdpZHRoPScxMjAnIGhlaWdodD0nNDAnIHJ4PSc2JyBmaWxsPScjNGE3ZDZmJy8+PHRleHQgeD0nNjAnIHk9JzI1JyBmb250LWZhbWlseT0nc2Fucy1zZXJpZicgZm9udC1zaXplPScxNCcgZmlsbD0nd2hpdGUnIHRleHQtYW5jaG9yPSdtaWRkbGUnPnN1bWk8L3RleHQ+PC9zdmc+ "Inline SVG")
@@ -131,7 +133,7 @@ Tilde fences work as well.
 | Mermaid     | folds to a chart   |    center |
 | Maths block | folds to maths     |      left |
 
-Cells take inline styles: **bold**, `code`, [links](https://example.com) and $x^2$. Click into the table to edit its source.
+Cells take inline styles: **bold**, `code`, [links](https://example.com) and $x^2$. Click into the table to edit its source. Inside it, Tab and Shift-Tab move between cells and Tab past the last cell adds a row; ⌘⏎ adds a row below; ⌘⇧| tidies the columns; Edit ▸ adds and deletes rows and columns.
 
 ## Maths
 
@@ -193,9 +195,18 @@ Reference and footnote definitions can live anywhere. They render faintly and ar
 [^one]: The first footnote.
 [^two]: The second, with *emphasis* and `code`.
 
+## Editing helpers
+
+- **Find and replace**: ⌘F opens the bar; ⌘G and ⌘⇧G step through matches; match case and whole word are toggles. It searches the source, so text inside folded tables and code is found too.
+- **Auto-pairing**: typing ( [ { " ` * or _ inserts the closer, or wraps the selection, so select a word and type * to make it italic. Typing the closer steps over it; backspace in an empty pair removes both. Off inside code, and View ▸ Auto-pair switches it off.
+- **Lists**: ⌘⇧L cycles a line through bullet, numbered, task and plain; Tab and Shift-Tab nest and unnest.
+- **Headings**: ⌘1 to ⌘6 set the level, ⌘0 makes a paragraph. The outline (⌘\\) marks a second `#` and skipped levels with a dot.
+- **Source code**: ⌘⇧U shows the raw markdown in monospace; ⌘⇧R keeps the rendering but reveals every marker.
+
 ## Beyond markdown
 
 - **Themes**: Theme ▸ seven built-in themes, or drop a `.css` file on the window (see `themes/sample.css`).
 - **Print**: ⌘P prints a compact page; Page ▸ Page break starts a new page at each `#` and `##`.
 - **Documents and history**: File ▸ Documents lists everything written in this browser; File ▸ History keeps versions with diff and restore; File ▸ Backup exports all of it as one file.
-- **Views**: View ▸ Focus, Typewriter, Outline, Source code; ⌘⇧R reveals all syntax while staying rendered.
+- **Views**: View ▸ Focus, Typewriter, Outline, Source code.
+- **Numbering**: Page ▸ Code line numbers, Heading numbers and Equation numbers. A document with a single `#` keeps that title unnumbered and numbers the sections from `##`; the table of contents follows.
