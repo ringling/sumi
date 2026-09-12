@@ -223,6 +223,19 @@ Export mirrors all three with CSS counters on `<pre class="linenos">` (one
 `getComputedStyle`, so the line-number harness checks the rule and the
 screenshot checks the value.
 
+## Section folding
+
+`folded` is a Set of heading slugs (session only). `applySections(caretLine)`
+runs at the end of `updateActive()`: after a folded heading every line up to
+the next heading of the same or a higher level gets `.hid` (display:none on
+screen only; print, export and source mode show everything). If the caret
+line would be hidden, the owning heading is unfolded first. `foldSection(i)`
+toggles the heading at or above line i and parks the caret on the heading
+when it was inside the section. `.hid` and `.folded` survive a line rewrite
+via the keep list in `render()`. The gutter chevron is a `::before` outside
+the line box; the click handler treats any click left of a heading's box as
+a fold toggle, like the task checkbox.
+
 ## Slash commands
 
 `SLASH` is a list of [key, label, template] (a template may be a function,
@@ -339,6 +352,7 @@ node test/cdp.mjs http://localhost:8765/test/pair.html       # auto-pairing, typ
 node test/cdp.mjs http://localhost:8765/test/table.html      # table commands and Tab navigation
 node test/cdp.mjs http://localhost:8765/test/emoji.html      # shortcodes and the completion popup
 node test/cdp.mjs http://localhost:8765/test/slash.html      # slash commands, typed with real keys
+node test/cdp.mjs http://localhost:8765/test/fold.html       # section folding
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open

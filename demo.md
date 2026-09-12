@@ -202,6 +202,7 @@ Reference and footnote definitions can live anywhere. They render faintly and ar
 - **Auto-pairing**: typing ( [ { " ` * or _ inserts the closer, or wraps the selection, so select a word and type * to make it italic. Typing the closer steps over it; backspace in an empty pair removes both. Off inside code, and View ▸ Auto-pair switches it off.
 - **Copy as rich text**: Edit ▸ Copy as rich text puts the selection, or the whole document, on the clipboard as formatted HTML with the markdown as plain text, so it pastes into Word, Outlook and mail with headings, lists and tables intact.
 - **Lists**: ⌘⇧L cycles a line through bullet, numbered, task and plain; Tab and Shift-Tab nest and unnest.
+- **Folding**: hover a heading and click the chevron in the margin, or press ⌘⇧., to fold everything under it up to the next heading of the same level; folded sections still print and export.
 - **Headings**: ⌘1 to ⌘6 set the level, ⌘0 makes a paragraph. The outline (⌘\\) marks a second `#` and skipped levels with a dot.
 - **Source code**: ⌘⇧U shows the raw markdown in monospace; ⌘⇧R keeps the rendering but reveals every marker.
 

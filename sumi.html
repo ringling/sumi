@@ -426,6 +426,16 @@ body.linenos .line.code:not(.fold)::before{
   color:var(--ink-faint); font-size:.85em;
 }
 .hn{display:none; color:var(--ink-soft); font-weight:inherit}
+
+/* ── section folding: a heading can hide everything down to the next heading
+   of its level or higher. Chevron in the gutter, ··· after a folded heading. ── */
+.line.h::before{content:'▾'; position:absolute; left:-1.3em; top:.2em; font-size:.75em; color:var(--ink-faint); opacity:0; cursor:pointer; transition:opacity .15s}
+.line.h:hover::before{opacity:.8}
+.line.h.folded::before{content:'▸'; opacity:.8}
+.line.h.folded::after{content:' ···'; color:var(--ink-faint); font-weight:400}
+@media screen{ .line.hid{display:none} }
+body.source .line.h::before,body.source .line.h.folded::after{content:none}
+body.source .line.hid{display:block}
 body.hnums .hn{display:inline}
 .prev{position:relative}
 .eqno{display:none; position:absolute; right:0; top:50%; transform:translateY(-50%);
@@ -492,6 +502,7 @@ kbd{
   .line{opacity:1!important; min-height:0}
   .line.empty{font-size:.5em}
   .h,html[data-theme] .h{margin:1.1em 0 .15em; color:#000}
+  .line.h::before,.line.h.folded::after{content:none}
   .line.h1{margin-top:.8em} .line:first-child{margin-top:0}
   .h1{font-size:1.6em} .h2{font-size:1.3em} .h3{font-size:1.12em}
   .quote{font-style:normal}
@@ -554,6 +565,7 @@ kbd{
     <tr><td><kbd>⌘⇧K</kbd></td><td>inline code</td></tr>
     <tr><td><kbd>⌘1</kbd>–<kbd>⌘6</kbd> <kbd>⌘0</kbd></td><td>heading level, plain paragraph</td></tr>
     <tr><td><kbd>⌘⇧L</kbd></td><td>cycle list type — bullet, numbered, task, plain</td></tr>
+    <tr><td><kbd>⌘⇧.</kbd></td><td>fold or unfold the section under a heading; the chevron left of a heading does the same. Folded sections still print and export</td></tr>
     <tr><td><kbd>/</kbd></td><td>on an empty line: a popup inserts a block — heading, list, task, quote, alert, code, diagram, maths, table, TOC, rule, image, link, footnote, date</td></tr>
     <tr><td><kbd>:smile:</kbd></td><td>emoji shortcodes (GitHub names, a curated set); a popup completes them as you type <kbd>:sm</kbd></td></tr>
     <tr><td>( [ { " ` * _</td><td>auto-paired: the closer is inserted, a selection is wrapped, typing the closer steps over it, backspace removes an empty pair. Off in code; View ▸ Auto-pair turns it off</td></tr>
@@ -1303,7 +1315,7 @@ function render(text) {
     /* keep the caret-state classes through the rewrite: otherwise the new .tok
        spans start folded and animate open once updateActive() re-adds .active,
        and the text slides under the caret on every keystroke */
-    const keep = ['active', 'near', 'fold'].filter(c => el.classList.contains(c)).map(c => ' ' + c).join('');
+    const keep = ['active', 'near', 'fold', 'hid', 'folded'].filter(c => el.classList.contains(c)).map(c => ' ' + c).join('');
     el.className = 'line ' + (flags[i].cls || '') + keep;
     if (flags[i].ind) el.style.setProperty('--ind', flags[i].ind);
     else el.style.removeProperty('--ind');
@@ -1396,6 +1408,7 @@ function updateActive() {
     while (b < kids.length - 1 && flags[b + 1] && flags[b + 1].type !== 'empty') b++;
     for (let i = 0; i < kids.length; i++) kids[i].classList.toggle('near', i >= a && i <= b);
   }
+  applySections(idx);
   if (document.body.classList.contains('typewriter') && kids[idx]) {
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => {
@@ -1601,6 +1614,8 @@ document.addEventListener('selectionchange', () => {
   if (document.activeElement === editor) { updateActive(); if (slash.open) slashCheck(); if (emo.open) emojiCheck(); }
 });
 editor.addEventListener('click', e => {
+  const hd = e.target.closest && e.target.closest('.line.h');
+  if (hd && e.clientX < hd.getBoundingClientRect().left) { foldSection([...editor.children].indexOf(hd)); return; }
   const link = e.target.closest && e.target.closest('a[href^="#"]');
   if (link && editor.contains(link)) {
     e.preventDefault();
@@ -1657,6 +1672,7 @@ document.addEventListener('keydown', e => {
   if (k === 'i') { e.preventDefault(); wrapSel('*'); return; }
   if (k === 'k' && e.shiftKey) { e.preventDefault(); wrapSel('`'); return; }
   if (k === 'l' && e.shiftKey) { e.preventDefault(); cycleList(); return; }
+  if (e.code === 'Period' && e.shiftKey) { e.preventDefault(); foldSection(caretLineIndex()); return; }
   if (k === '|' || (k === '\\' && e.shiftKey)) { e.preventDefault(); tableTidy(); return; }
   if (e.key === 'Enter') { e.preventDefault(); tableAddRow(); return; }
   if (k === 'k') {
@@ -1706,6 +1722,54 @@ function emojiMove(dir) {
   $('#emoji').querySelectorAll('div').forEach((el, i) => el.classList.toggle('on', i === emo.sel));
 }
 $('#emoji').onmousedown = e => { const it = e.target.closest('[data-i]'); if (it) { e.preventDefault(); emojiAccept(+it.dataset.i); } };
+
+/* ── section folding ──────────────────────────────────────────────────────
+   `folded` holds heading slugs. applySections() runs from updateActive():
+   lines after a folded heading get .hid until the next heading of the same
+   or a higher level; the caret landing inside a hidden section unfolds it. */
+const folded = new Set();
+function applySections(caretLine) {
+  const kids = editor.children;
+  let hiding = 0, owner = -1;
+  for (let i = 0; i < kids.length; i++) {
+    const f = flags[i];
+    if (f && f.type === 'h' && hiding && f.level <= hiding) { hiding = 0; owner = -1; }
+    const hid = hiding > 0;
+    if (hid && i === caretLine) { folded.delete(flags[owner].slug); return applySections(caretLine); }
+    if (f && f.type === 'h') {
+      const on = folded.has(f.slug);
+      kids[i].classList.toggle('folded', on);
+      if (on && !hiding) { hiding = f.level; owner = i; }
+    }
+    kids[i].classList.toggle('hid', hid);
+  }
+}
+function sectionEnd(i) {
+  const lvl = flags[i].level; let j = i + 1;
+  while (j < flags.length && !(flags[j].type === 'h' && flags[j].level <= lvl)) j++;
+  return j - 1;
+}
+function foldSection(i) {
+  let f = flags[i];
+  if (!f || f.type !== 'h') {                       /* fold the section the caret is in */
+    while (i > 0 && (!flags[i] || flags[i].type !== 'h')) i--;
+    f = flags[i]; if (!f || f.type !== 'h') return;
+  }
+  if (folded.has(f.slug)) folded.delete(f.slug);
+  else {
+    folded.add(f.slug);
+    const sel = selRange();
+    if (sel) {                                          /* keep the caret visible: park it at the heading's end */
+      const lines = text.split('\n');
+      const start = lines.slice(0, i).reduce((n, l) => n + l.length + 1, 0), end = start + lines[i].length;
+      const caretLine = text.slice(0, sel.start).split('\n').length - 1;
+      if (caretLine > i && caretLine <= sectionEnd(i)) setSel(end);
+    }
+  }
+  updateActive();
+}
+function unfoldAll() { folded.clear(); updateActive(); }
+const caretLineIndex = () => { const s = selRange(); return s ? text.slice(0, s.start).split('\n').length - 1 : -1; };
 
 /* ── slash commands ───────────────────────────────────────────────────────
    "/" on an otherwise empty line opens a popup of block templates, filtered
@@ -1936,6 +2000,9 @@ menuButton('bEdit', () => [
   { label: 'Find and replace', hint: '⌘F', data: 'data-act="find"', act: openFind },
   { label: 'Cycle list type', hint: '⌘⇧L', data: 'data-act="list"', act: cycleList },
   { label: 'Copy as rich text', data: 'data-act="rich"', act: copyRich },
+  '-',
+  { label: 'Fold or unfold section', hint: '⌘⇧.', data: 'data-act="fold"', act: () => foldSection(caretLineIndex()) },
+  { label: 'Unfold all', data: 'data-act="unfold"', act: unfoldAll },
   '-',
   { label: 'Tidy table', hint: '⌘⇧|', data: 'data-act="tidy"', act: tableTidy },
   { label: 'Add row below', hint: '⌘⏎', data: 'data-act="addrow"', act: tableAddRow },

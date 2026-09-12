@@ -1,0 +1,59 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,500); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign({key:k,bubbles:true,cancelable:true},o)));
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
+const vis=()=>$$('#editor .line').map(l=>w.getComputedStyle(l).display!=='none'?1:0).join('');
+const gutter=i=>{ const el=$$('#editor .line')[i]; const r=el.getBoundingClientRect(); el.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,clientX:r.left-8,clientY:r.top+r.height/2})); return sleep(100); };
+const caretLine=i=>{ const el=$$('#editor .line')[i]; const r=d.createRange(); r.selectNodeContents(el); r.collapse(false); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
+const cur=()=>{ const s=w.getSelection(); const el=(s.anchorNode.nodeType===1?s.anchorNode:s.anchorNode.parentElement).closest('.line'); return $$('#editor .line').indexOf(el); };
+const src=['# T','','a','','## S1','','b','','### S1.1','','c','','## S2','','d','','end'];
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(src.join('\n'),'f.md'); caretLine(16); await sleep(100);
+  ok(vis()==='11111111111111111','everything visible to start');
+  await gutter(4);
+  ok(vis()==='11111000000011111'&&$$('#editor .line')[4].classList.contains('folded'),'gutter click folds S1 down to S2: '+vis());
+  ok(w.getComputedStyle($$('#editor .line')[4],'::after').content==='" ···"','folded heading shows a marker');
+  await gutter(4);
+  ok(vis()==='11111111111111111'&&!$$('#editor .line')[4].classList.contains('folded'),'click again unfolds');
+  await gutter(8);
+  ok(vis()==='11111111100011111','folding S1.1 hides just c');
+  await gutter(0);
+  ok(vis()==='10000000000000000','folding the h1 hides the rest; nested fold remembered underneath');
+  await gutter(0);
+  ok(vis()==='11111111100011111','unfolding the h1 restores the nested fold state');
+  // caret landing inside a hidden section unfolds it: find "c"
+  key('f',{metaKey:true}); await sleep(80); $('#fq').value='c'; $('#fq').dispatchEvent(new w.Event('input',{bubbles:true})); await sleep(80);
+  while(!/of/.test($('#fcount').textContent)) await sleep(30);
+  let guard=0; while(cur()!==10&&guard++<6){ $('#fnext').click(); await sleep(60); }
+  ok(cur()===10&&vis()==='11111111111111111','jumping to a match inside the fold unfolds it: line '+cur()+' '+vis());
+  key('Escape'); await sleep(50);
+  // keyboard toggle from inside a section parks the caret on the heading
+  caretLine(6); await sleep(50); key('.',{code:'Period',metaKey:true,shiftKey:true}); await sleep(100);
+  ok(vis()==='11111000000011111'&&cur()===4,'cmd-shift-. folds the section around the caret and parks the caret on S1: line '+cur());
+  key('.',{code:'Period',metaKey:true,shiftKey:true}); await sleep(100);
+  ok(vis()==='11111111111111111','and unfolds again');
+  // menu, source mode, typing keeps the fold
+  caretLine(4); mclick('bEdit','[data-act=fold]'); await sleep(100); ok(vis()==='11111000000011111','Edit ▸ Fold');
+  caretLine(2); d.execCommand('insertText',false,'x'); await sleep(200); ok(vis()==='11111000000011111','editing elsewhere keeps the fold');
+  mclick('bView','[data-n=source]'); await sleep(100); ok(vis()==='11111111111111111','source mode shows everything'); mclick('bView','[data-n=source]'); await sleep(100);
+  ok(vis()==='11111000000011111','back from source mode, still folded');
+  mclick('bEdit','[data-act=unfold]'); await sleep(100); ok(vis()==='11111111111111111','Unfold all');
+  // export ignores folds
+  await gutter(0); let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
+  mclick('bFile','[data-act=html]'); await sleep(150); const html=await blob.text();
+  ok(/<h2 id="s2">S2<\/h2>/.test(html)&&/<p>d<\/p>/.test(html),'export contains folded sections');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>
