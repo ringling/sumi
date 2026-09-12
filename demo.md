@@ -197,6 +197,7 @@ Reference and footnote definitions can live anywhere. They render faintly and ar
 
 ## Editing helpers
 
+- **Slash commands**: on an empty line type `/` and pick a block from the popup: headings, lists, quote, the five alerts, code, diagram, maths, table, TOC, rule, image, link, footnote, front matter, today's date. Keep typing to filter, Enter or Tab to insert.
 - **Find and replace**: ⌘F opens the bar; ⌘G and ⌘⇧G step through matches; match case and whole word are toggles. It searches the source, so text inside folded tables and code is found too.
 - **Auto-pairing**: typing ( [ { " ` * or _ inserts the closer, or wraps the selection, so select a word and type * to make it italic. Typing the closer steps over it; backspace in an empty pair removes both. Off inside code, and View ▸ Auto-pair switches it off.
 - **Lists**: ⌘⇧L cycles a line through bullet, numbered, task and plain; Tab and Shift-Tab nest and unnest.

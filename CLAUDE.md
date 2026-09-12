@@ -223,6 +223,18 @@ Export mirrors all three with CSS counters on `<pre class="linenos">` (one
 `getComputedStyle`, so the line-number harness checks the rule and the
 screenshot checks the value.
 
+## Slash commands
+
+`SLASH` is a list of [key, label, template] (a template may be a function,
+e.g. today's date); `§` marks the caret and no template contains one.
+`slashCheck()` runs from `afterChange` before the emoji check and on
+selection change while open: a line that is exactly `/query` with the caret
+at its end opens `#slash`, filtered by key prefix first, then by the start of
+a label word (substring matching pulled in "Important" for "ta"). Front
+matter is offered only on line 0; nothing inside code or maths. Accepting is
+one `setText` replacing the line. Keys mirror the emoji popup and are
+handled first in the keydown handler.
+
 ## Emoji shortcodes
 
 `EMOJI` is a curated table of about 650 GitHub names (one template string,
@@ -326,6 +338,7 @@ node test/cdp.mjs http://localhost:8765/test/find.html       # find and replace
 node test/cdp.mjs http://localhost:8765/test/pair.html       # auto-pairing, typed with real key events
 node test/cdp.mjs http://localhost:8765/test/table.html      # table commands and Tab navigation
 node test/cdp.mjs http://localhost:8765/test/emoji.html      # shortcodes and the completion popup
+node test/cdp.mjs http://localhost:8765/test/slash.html      # slash commands, typed with real keys
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open
