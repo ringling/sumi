@@ -568,6 +568,7 @@ kbd{
     <tr><td>tables</td><td>fold to a rendered grid when the caret leaves. Inside one: <kbd>Tab</kbd> <kbd>⇧Tab</kbd> move between cells (Tab past the last cell adds a row), <kbd>⌘⏎</kbd> adds a row, <kbd>⌘⇧|</kbd> tidies the source; Edit ▸ adds and deletes rows and columns</td></tr>
     <tr><td>View</td><td>outline, focus, typewriter, source code; line width and typeface</td></tr>
     <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3; a lone # title stays unnumbered) and equation numbers</td></tr>
+    <tr><td>Edit</td><td>find, list cycling, copy as rich text (selection or document, pastes formatted into Word and mail), table commands</td></tr>
     <tr><td>File</td><td>new document, the Documents drawer, open, save, copy markdown, export HTML, print or PDF</td></tr>
     <tr><td>Documents</td><td>every document you write is kept in this browser (IndexedDB); the drawer lists them by last edit — switch, delete, or rename by editing the name at the top left</td></tr>
     <tr><td>History</td><td>versions of the open document: automatic after a pause, on save and when you leave it; name one, diff it against the current text, restore it (restoring keeps a version of what you had)</td></tr>
@@ -1934,6 +1935,7 @@ menuButton('bView', () => [
 menuButton('bEdit', () => [
   { label: 'Find and replace', hint: '⌘F', data: 'data-act="find"', act: openFind },
   { label: 'Cycle list type', hint: '⌘⇧L', data: 'data-act="list"', act: cycleList },
+  { label: 'Copy as rich text', data: 'data-act="rich"', act: copyRich },
   '-',
   { label: 'Tidy table', hint: '⌘⇧|', data: 'data-act="tidy"', act: tableTidy },
   { label: 'Add row below', hint: '⌘⏎', data: 'data-act="addrow"', act: tableAddRow },
@@ -1962,6 +1964,24 @@ menuButton('bFile', () => [
   { label: 'Backup all documents', data: 'data-act="backup"', act: backup },
   { label: 'Import backup…', data: 'data-act="import"', act: () => $('#jsonpicker').click() },
 ]);
+/* Copy as rich text: the selection (or the whole document) rendered with the
+   export renderer goes on the clipboard as HTML, with the markdown as the
+   plain-text alternative, so Word, Outlook and mail clients paste it formatted. */
+async function copyRich() {
+  const sel = selRange();
+  const src = sel && sel.end > sel.start ? text.slice(sel.start, sel.end) : text;
+  const html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' + mdToHtml(src, true) + '</body></html>';
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([html], { type: 'text/html' }),
+      'text/plain': new Blob([src], { type: 'text/plain' }),
+    })]);
+    toast((sel && sel.end > sel.start ? 'Selection' : 'Document') + ' copied as rich text');
+  } catch (e) {
+    try { await navigator.clipboard.writeText(src); toast('Copied as markdown; this browser refused rich text'); }
+    catch (err) { toast('Copy failed: the browser refused clipboard access'); }
+  }
+}
 async function copySource() {
   try { await navigator.clipboard.writeText(text); toast('Copied markdown, ' + text.length + ' characters'); }
   catch (e) { toast('Copy failed: the browser refused clipboard access'); }

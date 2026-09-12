@@ -200,6 +200,7 @@ Reference and footnote definitions can live anywhere. They render faintly and ar
 - **Slash commands**: on an empty line type `/` and pick a block from the popup: headings, lists, quote, the five alerts, code, diagram, maths, table, TOC, rule, image, link, footnote, front matter, today's date. Keep typing to filter, Enter or Tab to insert.
 - **Find and replace**: ⌘F opens the bar; ⌘G and ⌘⇧G step through matches; match case and whole word are toggles. It searches the source, so text inside folded tables and code is found too.
 - **Auto-pairing**: typing ( [ { " ` * or _ inserts the closer, or wraps the selection, so select a word and type * to make it italic. Typing the closer steps over it; backspace in an empty pair removes both. Off inside code, and View ▸ Auto-pair switches it off.
+- **Copy as rich text**: Edit ▸ Copy as rich text puts the selection, or the whole document, on the clipboard as formatted HTML with the markdown as plain text, so it pastes into Word, Outlook and mail with headings, lists and tables intact.
 - **Lists**: ⌘⇧L cycles a line through bullet, numbered, task and plain; Tab and Shift-Tab nest and unnest.
 - **Headings**: ⌘1 to ⌘6 set the level, ⌘0 makes a paragraph. The outline (⌘\\) marks a second `#` and skipped levels with a dot.
 - **Source code**: ⌘⇧U shows the raw markdown in monospace; ⌘⇧R keeps the rendering but reveals every marker.

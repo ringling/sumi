@@ -85,6 +85,17 @@ const lineText=i=>$$('#editor .line')[i].textContent;
   $('#bFile').click(); ok($$('#menu .mi').length===10&&$$('#menu .mi kbd').length===4,'File menu: 10 items, 4 with shortcut hints'); d.body.click();
   // Pages: the title after front matter is exempt from the page break, later headings are not
   ok($$('#editor .line')[6].classList.contains('first')&&!$$('#editor .line')[10].classList.contains('first'),'first heading after front matter marked first; later h2 not');
+  // copy as rich text: whole document, then a selection
+  let items=null; w.navigator.clipboard.write=arr=>{ items=arr; return Promise.resolve(); };
+  mclick('bEdit','[data-act=rich]'); await sleep(150);
+  let htmlBlob=await items[0].getType('text/html'), plainBlob=await items[0].getType('text/plain');
+  let rich=await htmlBlob.text(), plain=await plainBlob.text();
+  ok(/<h1 id="top">Top<\/h1>/.test(rich)&&/<h2 id="sub">Sub<\/h2>/.test(rich)&&/<pre( class="linenos")?><code class="language-js">/.test(rich)&&!/title: Aftaler/.test(rich),'rich copy: rendered html without front matter: '+JSON.stringify(rich.slice(0,260)));
+  ok(plain.startsWith('---\ntitle: Aftaler')&&/Document copied as rich text/.test($('#toast').textContent),'rich copy: markdown as the plain alternative, toast');
+  { const l=$$('#editor .line')[10]; const r=d.createRange(); r.selectNodeContents(l); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); }
+  mclick('bEdit','[data-act=rich]'); await sleep(150);
+  rich=await (await items[0].getType('text/html')).text(); plain=await (await items[0].getType('text/plain')).text();
+  ok(/<h2 id="sub">Sub<\/h2>/.test(rich)&&!/<h1/.test(rich)&&plain==='## Sub'&&/Selection copied/.test($('#toast').textContent),'rich copy of a selection: just that heading');
   // export
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
   mclick('bFile','[data-act=html]'); await sleep(100); const html=await blob.text();
