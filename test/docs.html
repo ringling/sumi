@@ -14,8 +14,8 @@ const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign(
 const caretEnd=()=>{ const el=$$('#editor .line').slice(-1)[0]; const r=d.createRange(); r.selectNodeContents(el); r.collapse(false); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); };
 const type=async t=>{ caretEnd(); d.execCommand('insertText',false,t); await sleep(1200); };   // past the 900 ms autosave
 const rows=()=>$$('#docs .doc');
-const names=()=>rows().map(r=>r.querySelector('.n').textContent).join('|');
-const row=n=>rows().find(r=>r.querySelector('.n').textContent===n);
+const names=()=>rows().map(r=>(r.querySelector('.n')||r.querySelector('input')||{}).textContent??'').join('|');
+const row=n=>rows().find(r=>(r.querySelector('.n')||{}).textContent===n);
 const dbAll=win=>new Promise((res,rej)=>{ const r=win.indexedDB.open('sumi',1); r.onsuccess=()=>{ const t=r.result.transaction('docs','readonly'); const q=t.objectStore('docs').getAll(); q.onsuccess=()=>{ r.result.close(); res(q.result); }; q.onerror=()=>rej(q.error); }; r.onerror=()=>rej(r.error); });
 const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
 (async()=>{
@@ -49,6 +49,23 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
   // rename via the name field
   $('#name').value='two.md'; $('#name').dispatchEvent(new w.Event('input',{bubbles:true})); await sleep(1200);
   ok(names()==='two.md|old.md','renaming through the name field updates the drawer: '+names());
+  // File ▸ Rename selects the base name in the name field
+  mclick('bFile','[data-act=rename]'); await sleep(50);
+  ok(d.activeElement===$('#name')&&$('#name').value.slice($('#name').selectionStart,$('#name').selectionEnd)==='two','File ▸ Rename focuses the name field with the base name selected');
+  $('#editor').focus();
+  // double-click rename in the drawer, for the non-current document
+  await sleep(300); const oldRow=row('old.md'); oldRow.dispatchEvent(new w.MouseEvent('dblclick',{bubbles:true,cancelable:true})); await sleep(50);
+  const inp=oldRow.querySelector('input');
+  ok(inp&&d.activeElement===inp&&inp.value==='old.md','double-click turns the row into an input: '+(inp&&inp.value));
+  inp.value='renamed.md'; inp.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true})); await sleep(300);
+  ok(names()==='two.md|renamed.md'&&$('#name').value==='two.md','Enter renames the other document, the open one is untouched: '+names());
+  all=await dbAll(w); ok(all.some(x=>x.name==='renamed.md')&&!all.some(x=>x.name==='old.md'),'rename persisted');
+  const r2=row('two.md'); r2.dispatchEvent(new w.MouseEvent('dblclick',{bubbles:true,cancelable:true})); await sleep(50);
+  const inp2=r2.querySelector('input'); inp2.value='nope.md'; inp2.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true})); await sleep(200);
+  ok(names()==='two.md|renamed.md'&&!$('#docs input'),'Escape cancels the rename');
+  const r3=row('renamed.md'); r3.dispatchEvent(new w.MouseEvent('dblclick',{bubbles:true,cancelable:true})); await sleep(50);
+  const inp3=r3.querySelector('input'); inp3.value='old.md'; inp3.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true})); await sleep(300);
+  ok(names()==='two.md|old.md','renamed back for the rest of the run');
   // drop a file -> new document; dropping the same again reopens it
   await drop('# Dropped\n\nbody','dropped.md');
   ok($('#name').value==='dropped.md'&&rows().length===3&&rows()[0].querySelector('.n').textContent==='dropped.md','dropped file becomes a document: '+names());

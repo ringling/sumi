@@ -170,7 +170,10 @@ key/value layer as before.
 
 The Documents drawer (`#docs`, File ▸ Documents, `body.docs`) shares the left
 edge with the outline; opening one closes the other. Delete is two clicks on
-the × within four seconds. Harnesses must `indexedDB.deleteDatabase('sumi')`
+the × within four seconds. Double-click a row to rename it in place
+(`renameDoc`: the open document goes through the name field and `flush()`,
+any other is rewritten directly); File ▸ Rename selects the base name in the
+name field. Harnesses must `indexedDB.deleteDatabase('sumi')`
 when starting fresh, otherwise the previous harness's documents load.
 
 ## History

@@ -210,6 +210,7 @@ body.docs #docs{transform:none}
 #docs .doc:hover{background:var(--paper-2); color:var(--ink)}
 #docs .doc.on{color:var(--ink); background:var(--paper-2)}
 #docs .doc .n{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+#docs .doc input{flex:1; min-width:0; font:inherit; color:var(--ink); background:var(--paper); border:1px solid var(--accent); border-radius:4px; padding:1px 4px; outline:none}
 #docs .doc .t{color:var(--ink-faint); font-size:11px}
 #docs .doc .x{visibility:hidden; color:var(--ink-faint); background:none; border:0; font:inherit; font-size:14px; line-height:1; cursor:pointer; padding:0 3px; border-radius:4px}
 #docs .doc:hover .x,#docs .doc.ask .x{visibility:visible}
@@ -582,7 +583,7 @@ kbd{
     <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3; a lone # title stays unnumbered) and equation numbers</td></tr>
     <tr><td>Edit</td><td>find, list cycling, copy as rich text (selection or document, pastes formatted into Word and mail), table commands</td></tr>
     <tr><td>File</td><td>new document, the Documents drawer, open, save, copy markdown, export HTML, print or PDF</td></tr>
-    <tr><td>Documents</td><td>every document you write is kept in this browser (IndexedDB); the drawer lists them by last edit — switch, delete, or rename by editing the name at the top left</td></tr>
+    <tr><td>Documents</td><td>every document you write is kept in this browser (IndexedDB); the drawer lists them by last edit — click to switch, × twice to delete, double-click to rename; File ▸ Rename or the name field at the top left renames the open one</td></tr>
     <tr><td>History</td><td>versions of the open document: automatic after a pause, on save and when you leave it; name one, diff it against the current text, restore it (restoring keeps a version of what you had)</td></tr>
     <tr><td>Backup</td><td>File ▸ Backup downloads every document and version as one .json; import it here or in another browser</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
@@ -2044,6 +2045,7 @@ menuButton('bPage', () => [
 ]);
 menuButton('bFile', () => [
   { label: 'New document', data: 'data-act="new"', act: () => createDoc('untitled.md', '') },
+  { label: 'Rename document', data: 'data-act="rename"', act: renameCurrent },
   check('docs', 'Documents'),
   check('hist', 'History'),
   '-',
@@ -2628,9 +2630,33 @@ async function buildDocs() {
     box.appendChild(row);
   }
 }
+/* Rename: File ▸ Rename selects the name field; a double-click on a drawer
+   row edits that document's name in place (Enter saves, Escape cancels). */
+function renameCurrent() {
+  const n = $('#name'); n.focus();
+  const dot = n.value.lastIndexOf('.');
+  n.setSelectionRange(0, dot > 0 ? dot : n.value.length);
+}
+async function renameDoc(id, name) {
+  name = name.trim(); if (!name) return;
+  if (doc && doc.id === id) { $('#name').value = name; await flush(); }
+  else { try { const d = await idb.get('docs', id); if (d) { d.name = name; await idb.put('docs', d); } } catch (e) {} }
+  buildDocs();
+}
+$('#docs').ondblclick = e => {
+  const row = e.target.closest('.doc'); if (!row || row.querySelector('input')) return;
+  const n = row.querySelector('.n'), old = n.textContent;
+  const inp = document.createElement('input'); inp.value = old; inp.setAttribute('aria-label', 'Document name');
+  n.replaceWith(inp); inp.focus(); const dot = old.lastIndexOf('.'); inp.setSelectionRange(0, dot > 0 ? dot : old.length);
+  let done = false;
+  const finish = save => { if (done) return; done = true; if (save && inp.value.trim() && inp.value.trim() !== old) renameDoc(row.dataset.id, inp.value); else buildDocs(); };
+  inp.onkeydown = ev => { ev.stopPropagation(); if (ev.key === 'Enter') { ev.preventDefault(); finish(true); } else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); } };
+  inp.onblur = () => finish(true);
+  inp.onclick = ev => ev.stopPropagation();
+};
 $('#docs').onclick = e => {
   if (e.target.closest('[data-act=new]')) { createDoc('untitled.md', ''); return; }
-  const row = e.target.closest('.doc'); if (!row) return;
+  const row = e.target.closest('.doc'); if (!row || e.target.tagName === 'INPUT') return;
   if (e.target.closest('.x')) {
     if (row.classList.contains('ask')) deleteDoc(row.dataset.id);
     else { row.classList.add('ask'); row.querySelector('.n').textContent = 'Delete? Click × again'; setTimeout(buildDocs, 4000); }
