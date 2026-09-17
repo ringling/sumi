@@ -133,7 +133,7 @@ Tilde fences work as well.
 | Mermaid     | folds to a chart   |    center |
 | Maths block | folds to maths     |      left |
 
-Cells take inline styles: **bold**, `code`, [links](https://example.com) and $x^2$. Click into the table to edit its source. Inside it, Tab and Shift-Tab move between cells and Tab past the last cell adds a row; ⌘⏎ adds a row below; ⌘⇧| tidies the columns; Edit ▸ adds and deletes rows and columns.
+Cells take inline styles: **bold**, `code`, [links](https://example.com) and $x^2$. Click into the table to edit its source. Inside it, Tab and Shift-Tab move between cells and Tab past the last cell adds a row; ⌘⏎ adds a row below; ⌘⇧| tidies the columns, and the source is tidied on its own whenever you leave the table (Page ▸ Tidy tables switches that off); Edit ▸ adds and deletes rows and columns.
 
 ## Maths
 

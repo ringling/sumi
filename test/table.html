@@ -12,6 +12,8 @@ const key=(k,o={})=>d.dispatchEvent(new w.KeyboardEvent('keydown',Object.assign(
 const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(400); };
 const srcText=i=>{ const l=$$('#editor .line')[i]; const s=l.querySelector('.src'); return s?s.textContent:[...l.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join(''); };
 const lines=()=>$$('#editor .line').map((_,i)=>srcText(i));
+const real=async t=>{ const n=(window.__typed||0)+1; (window.__keys=window.__keys||[]).push(t); while((window.__typed||0)<n) await sleep(30); await sleep(150); };
+const caretPos=()=>{ const s=w.getSelection(); const el=(s.anchorNode.nodeType===1?s.anchorNode:s.anchorNode.parentElement).closest('.line'); const r=d.createRange(); r.selectNodeContents(el); r.setEnd(s.anchorNode,s.anchorOffset); return [$$('#editor .line').indexOf(el), r.toString().length]; };
 const caret=(i,off)=>{ const el=$$('#editor .line')[i]; const r=d.createRange(); let node=null,pos=off; (function walk(n){ if(node) return; if(n.nodeType===3){ if(pos<=n.data.length) node=n; else pos-=n.data.length; return; } if(n.nodeType===1&&n.hasAttribute('data-x')) return; for(const c of n.childNodes){ walk(c); if(node) return; } })(el); r.setStart(node||el,node?pos:0); r.collapse(true); const s=w.getSelection(); s.removeAllRanges(); s.addRange(r); $('#editor').focus(); d.dispatchEvent(new Event('selectionchange')); };
 const selText=()=>w.getSelection().toString();
 const src=['intro','','|Name|Value|Note|','|:--|--:|:-:|','|Alpha|1|x|','| Long cell here |22|','','after'];
@@ -62,6 +64,23 @@ const src=['intro','','|Name|Value|Note|','|:--|--:|:-:|','|Alpha|1|x|','| Long 
   ok(lines().length===9&&srcText(5).startsWith('| Long cell here'),'empty row deleted');
   caret(2,3); await sleep(50); mclick('bEdit','[data-act=delrow]'); await sleep(100);
   ok(lines().length===9&&/header/.test($('#toast').textContent),'header row cannot be deleted');
+  // automatic tidy on leaving: widen a cell, then click out
+  mclick('bEdit','[data-act=tidy]'); await sleep(120); caret(2,3); await sleep(30);
+  caret(4,7); await sleep(30); d.execCommand('insertText',false,' widened'); await sleep(150);
+  ok(srcText(4)==='| Alpha widened          |     1 |  x   |','typing inside widens a cell without moving the others yet');
+  await sleep(800); caret(7,0); await sleep(150);
+  ok(srcText(4)==='| Alpha widened  |     1 |  x   |'&&srcText(2)==='| Name           | Value | Note |'&&srcText(5).startsWith('| Long cell here |'),'leaving the table tidies it: '+JSON.stringify(srcText(4)));
+  ok(JSON.stringify(caretPos())==='[7,0]','caret after the table stays put');
+  key('z',{metaKey:true}); await sleep(120);
+  ok(srcText(4)==='| Alpha widened          |     1 |  x   |','the automatic tidy is one undo step');
+  mclick('bPage','[data-n=tidy]'); await sleep(50); caret(4,3); await sleep(30); caret(7,0); await sleep(150);
+  ok(srcText(4)==='| Alpha widened          |     1 |  x   |'&&d.body.classList.contains('notidy'),'Page ▸ Tidy tables off: leaving does nothing');
+  mclick('bPage','[data-n=tidy]'); await sleep(50); caret(4,3); await sleep(30); caret(7,0); await sleep(150);
+  ok(srcText(4)==='| Alpha widened  |     1 |  x   |','switched back on: tidied on leaving');
+  // Enter at the end of the last row leaves the table and tidies it
+  caret(5,2); await sleep(30); d.execCommand('insertText',false,'Q'); await sleep(800);
+  const last=srcText(5); caret(5,last.length); await sleep(30); await real('\n'); await sleep(200);
+  ok(/^\| QLong cell here \|/.test(srcText(5))&&srcText(6)===''&&JSON.stringify(caretPos())==='[6,0]','Enter after the last row: new line, table tidied, caret on the new line: '+JSON.stringify(srcText(5)));
   // export still renders the tidy table
   let blob=null; const orig=w.URL.createObjectURL.bind(w.URL); w.URL.createObjectURL=b=>{blob=b;return orig(b);}; w.HTMLAnchorElement.prototype.click=function(){};
   mclick('bFile','[data-act=html]'); await sleep(150); const html=await blob.text();

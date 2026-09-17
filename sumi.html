@@ -577,7 +577,7 @@ kbd{
     <tr><td><kbd>⌘⇧U</kbd></td><td>source code mode — raw markdown, monospace, nothing folded</td></tr>
     <tr><td><kbd>⌘S</kbd> <kbd>⌘O</kbd></td><td>save, open</td></tr>
     <tr><td><kbd>⌘⇧E</kbd> <kbd>⌘P</kbd></td><td>export HTML, print or save as PDF</td></tr>
-    <tr><td>tables</td><td>fold to a rendered grid when the caret leaves. Inside one: <kbd>Tab</kbd> <kbd>⇧Tab</kbd> move between cells (Tab past the last cell adds a row), <kbd>⌘⏎</kbd> adds a row, <kbd>⌘⇧|</kbd> tidies the source; Edit ▸ adds and deletes rows and columns</td></tr>
+    <tr><td>tables</td><td>fold to a rendered grid when the caret leaves. Inside one: <kbd>Tab</kbd> <kbd>⇧Tab</kbd> move between cells (Tab past the last cell adds a row), <kbd>⌘⏎</kbd> adds a row, <kbd>⌘⇧|</kbd> tidies the source, and leaving the table tidies it on its own (Page ▸ Tidy tables); Edit ▸ adds and deletes rows and columns</td></tr>
     <tr><td>View</td><td>outline, focus, typewriter, source code; line width and typeface</td></tr>
     <tr><td>Page</td><td>margin (screen, print, PDF); page break at each # and ##; code line, heading (1.2.3; a lone # title stays unnumbered) and equation numbers</td></tr>
     <tr><td>Edit</td><td>find, list cycling, copy as rich text (selection or document, pastes formatted into Word and mail), table commands</td></tr>
@@ -1395,6 +1395,10 @@ function updateActive() {
   if (kids[activeLine] && activeLine !== idx) kids[activeLine].classList.remove('active');
   if (kids[idx]) kids[idx].classList.add('active');
   activeLine = idx;
+  /* leaving a table tidies its source (the grid takes over, so nothing visibly jumps) */
+  const inTable = flags[idx] && flags[idx].type === 'table' ? idx : -1;
+  if (lastTableLine >= 0 && inTable < 0) { const t = lastTableLine; lastTableLine = -1; autoTidy(t); }
+  else lastTableLine = inTable;
   if (blkCount) {
     const open = flags[idx] ? flags[idx].blk : null;
     for (let i = 0; i < kids.length; i++) {
@@ -1771,6 +1775,27 @@ function foldSection(i) {
 function unfoldAll() { folded.clear(); updateActive(); }
 const caretLineIndex = () => { const s = selRange(); return s ? text.slice(0, s.start).split('\n').length - 1 : -1; };
 
+/* ── automatic table tidy ─────────────────────────────────────────────────
+   updateActive() remembers the table line the caret was on; when the caret
+   is no longer in a table, that table's source is rewritten with tidyRows()
+   if that changes anything, the caret offset shifted by the difference when
+   it sits after the table. Off with body.notidy (Page ▸ Tidy tables). */
+let lastTableLine = -1;
+function autoTidy(line) {
+  if (document.body.classList.contains('notidy')) return;
+  const f = flags[line]; if (!f || f.type !== 'table') return;
+  let a = line, b = line;
+  while (a > 0 && flags[a - 1].type === 'table' && flags[a - 1].blk === f.blk) a--;
+  while (b + 1 < flags.length && flags[b + 1].type === 'table' && flags[b + 1].blk === f.blk) b++;
+  const lines = text.split('\n'), rows = lines.slice(a, b + 1), tidy = tidyRows(rows);
+  if (tidy.join('\n') === rows.join('\n')) return;
+  const start = lines.slice(0, a).reduce((n, l) => n + l.length + 1, 0), end = start + rows.join('\n').length;
+  const delta = tidy.join('\n').length - rows.join('\n').length;
+  const sel = selRange();
+  const shift = p => p >= end ? p + delta : p;
+  setText(text.slice(0, start) + tidy.join('\n') + text.slice(end), sel ? shift(sel.start) : start, sel ? shift(sel.end) : start);
+}
+
 /* ── slash commands ───────────────────────────────────────────────────────
    "/" on an otherwise empty line opens a popup of block templates, filtered
    by what follows the slash. Accepting replaces the line with the template;
@@ -1934,7 +1959,7 @@ addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY 
 $('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
 /* View-state classes on body. The menus read them back, so there is no button
    state to keep in sync; the persisted ones are written on every change. */
-const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos', 'nopair'];
+const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos', 'nopair', 'notidy'];
 function toggle(cls) {
   const on = document.body.classList.toggle(cls);
   if (PERSISTED.includes(cls)) storeSettings();
@@ -2013,6 +2038,7 @@ menuButton('bEdit', () => [
 menuButton('bPage', () => [
   cycle('margin', 'Margin: ' + MARGINS[mgi][0], () => { mgi = (mgi + 1) % MARGINS.length; applyMargin(); storeSettings(); }),
   '-',
+  { label: 'Tidy tables when leaving them', on: !document.body.classList.contains('notidy'), data: 'data-n="tidy"', act: () => toggle('notidy') },
   check('pagebreak', 'Page break at # and ##'),
   ...NUMS.map(([cls, label]) => check(cls, label)),
 ]);
@@ -2470,6 +2496,7 @@ const storeSettings = () => persist(SKEY, {
   pages: document.body.classList.contains('pagebreak'),
   ...Object.fromEntries(NUMS.map(([cls]) => [cls, document.body.classList.contains(cls)])),
   nopair: document.body.classList.contains('nopair'),
+  notidy: document.body.classList.contains('notidy'),
 });
 
 let dbp = null;
@@ -2850,6 +2877,7 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
     if (prefs.pages) document.body.classList.add('pagebreak');
     for (const [cls] of NUMS) if (prefs[cls]) document.body.classList.add(cls);
     if (prefs.nopair) document.body.classList.add('nopair');
+    if (prefs.notidy) document.body.classList.add('notidy');
   }
   let d = null;
   try {

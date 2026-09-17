@@ -270,6 +270,13 @@ and `replaceTable()` places the selection in a chosen cell, all through
 `setText`. A row shorter than the header is padded by tidy when Tab reaches
 its missing cell. Header and divider rows cannot be deleted.
 
+Leaving a table tidies it automatically: `updateActive()` remembers the
+table line the caret was on (`lastTableLine`) and calls `autoTidy()` once the
+caret is elsewhere; it rewrites only if `tidyRows()` changes something and
+shifts a caret that sits after the table by the length difference. Off with
+`body.notidy` (Page ▸ Tidy tables, persisted). A tidy within 700 ms of the
+last keystroke coalesces into that undo step, by the normal `record()` rule.
+
 ## Auto-pairing
 
 `autoPair(e)` runs from `beforeinput` for `insertText` and

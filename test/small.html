@@ -38,7 +38,7 @@ const lineText=i=>$$('#editor .line')[i].textContent;
   ok(sup&&sup.title==='The note text','footnote reference carries the definition as title: '+(sup&&sup.title));
   // numbers menu
   $('#bPage').click();
-  ok($('#menu').classList.contains('show')&&$$('#menu .mi[data-n]').length===4&&$('#bPage').getAttribute('aria-expanded')==='true','Page menu opens with margin and 4 toggles');
+  ok($('#menu').classList.contains('show')&&$$('#menu .mi[data-n]').length===5&&$('#bPage').getAttribute('aria-expanded')==='true','Page menu opens with margin and 5 toggles');
   $('#menu .mi[data-n=linenos]').click();
   ok(d.body.classList.contains('linenos')&&!$('#menu').classList.contains('show'),'line numbers toggled on, menu closed');
   const code=$$('#editor .line.code');
