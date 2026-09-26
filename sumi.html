@@ -586,6 +586,7 @@ kbd{
     <tr><td>Documents</td><td>every document you write is kept in this browser (IndexedDB); the drawer lists them by last edit — click to switch, × twice to delete, double-click to rename; File ▸ Rename or the name field at the top left renames the open one</td></tr>
     <tr><td>History</td><td>versions of the open document: automatic after a pause, on save and when you leave it; name one, diff it against the current text, restore it (restoring keeps a version of what you had)</td></tr>
     <tr><td>Backup</td><td>File ▸ Backup downloads every document and version as one .json; import it here or in another browser</td></tr>
+    <tr><td>Share</td><td>File ▸ Copy share link puts the whole document, compressed, into a link; opening it in Sumi creates the document. Nothing is sent to a server. A snapshot, fine up to a few pages</td></tr>
     <tr><td><kbd>---</kbd> at the top</td><td>YAML front matter folds to a card and is left out of exports</td></tr>
     <tr><td><kbd>[^1]</kbd></td><td>footnotes; hover a reference to read its definition</td></tr>
     <tr><td><kbd>[TOC]</kbd></td><td>table of contents built from the headings; <kbd>[text](#heading)</kbd> links jump to a heading</td></tr>
@@ -2053,6 +2054,7 @@ menuButton('bFile', () => [
   { label: 'Save', hint: '⌘S', data: 'data-act="save"', act: saveMd },
   '-',
   { label: 'Copy markdown', data: 'data-act="copy"', act: copySource },
+  { label: 'Copy share link', data: 'data-act="share"', act: copyShareLink },
   { label: 'Export HTML', hint: '⌘⇧E', data: 'data-act="html"', act: exportHtml },
   { label: 'Print or PDF', hint: '⌘P', data: 'data-act="print"', act: () => print() },
   '-',
@@ -2788,6 +2790,54 @@ function showDiff(v) {
 }
 $('#diff').onclick = e => { if (e.target.id === 'diff') $('#diff').classList.remove('show'); };
 
+/* ── sharing ──────────────────────────────────────────────────────────────
+   A share link carries the document itself: #d=<ver>.<base64url payload>,
+   ver 1 = deflate-raw of the UTF-8 JSON {n: name, t: text}, ver 0 = the same
+   uncompressed (browsers without CompressionStream). Fragments never reach a
+   server. Opening a link creates the document (or reopens an identical one)
+   and clears the fragment. importShared() is the single entry point, so other
+   link kinds can join it later. */
+const b64u = bytes => { let b = ''; for (let i = 0; i < bytes.length; i += 0x8000) b += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(b).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64u = str => { const b = atob(str.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - str.length % 4) % 4)); const out = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) out[i] = b.charCodeAt(i); return out; };
+async function deflate(str) {
+  const bytes = new TextEncoder().encode(str);
+  if (typeof CompressionStream !== 'function') return ['0', bytes];
+  const buf = await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+  return ['1', new Uint8Array(buf)];
+}
+async function inflate(ver, bytes) {
+  if (ver === '0') return new TextDecoder().decode(bytes);
+  const buf = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+  return new TextDecoder().decode(buf);
+}
+async function shareLink() {
+  const [ver, bytes] = await deflate(JSON.stringify({ n: $('#name').value || 'untitled.md', t: text }));
+  return location.href.replace(/#.*$/, '') + '#d=' + ver + '.' + b64u(bytes);
+}
+async function copyShareLink() {
+  const link = await shareLink();
+  try {
+    await navigator.clipboard.writeText(link);
+    toast(`Link copied, ${(link.length / 1024).toFixed(1)} KB` + (link.length > 8192 ? '. Long links may be cut by mail and chat apps' : ''));
+  } catch (e) { toast('Copy failed: the browser refused clipboard access'); }
+}
+async function importShared(hash) {
+  const m = /^#d=([01])\.([A-Za-z0-9_-]+)$/.exec(hash || '');
+  if (!m) return false;
+  const clear = () => history.replaceState(null, '', location.pathname + location.search);
+  let payload;
+  try { payload = JSON.parse(await inflate(m[1], unb64u(m[2]))); if (!payload || typeof payload.t !== 'string') throw new Error('shape'); }
+  catch (e) { clear(); toast('Not a Sumi link'); return false; }
+  const name = String(payload.n || 'shared.md').slice(0, 200);
+  let same = null;
+  try { same = (await idb.all('docs')).find(d => d.name === name && d.text === payload.t); } catch (e) {}
+  if (same) await openDoc(same.id); else await createDoc(name, payload.t);
+  clear();
+  toast('Opened shared document ' + name);
+  return true;
+}
+addEventListener('hashchange', () => importShared(location.hash));
+
 /* Backup: one JSON file with every document (without file handles) and version. */
 async function backup() {
   await flush();
@@ -2922,6 +2972,7 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
     d = { id: 'draft', name: (legacy && legacy.name) || 'untitled.md', text: (legacy && legacy.text) || WELCOME, created: 0, updated: 0 };
   }
   showDoc(d);
+  if (location.hash.startsWith('#d=')) await importShared(location.hash);
   $('#bar').classList.add('show');
   setTimeout(() => $('#bar').classList.remove('show'), 2200);
 })();

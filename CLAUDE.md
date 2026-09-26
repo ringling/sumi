@@ -202,6 +202,18 @@ file handles; import (File ▸ Import, or drop a .json) merges by document id
 (newer `updated` wins) and by docId+at for versions, so importing twice adds
 nothing.
 
+## Sharing
+
+`shareLink()` makes `<page url>#d=<ver>.<base64url>`: ver 1 is deflate-raw
+(`CompressionStream`) of the UTF-8 JSON `{n, t}`, ver 0 the same uncompressed
+when the API is missing. `copyShareLink()` toasts the size and warns past
+8 KB. `importShared(hash)` is the one entry point for opening links: it
+decodes, reopens an identical document or `createDoc`s a new one, clears the
+fragment with `replaceState` so a reload does not import twice, and toasts;
+it runs after `showDoc` at startup and on `hashchange`. A bad payload toasts
+"Not a Sumi link". Other link kinds (a share service, `#s=id!key`) should be
+added to `importShared`, not beside it.
+
 ## Source mode
 
 `body.source` (Source button, ⌘⇧U) is pure CSS over the same DOM: every `.tok`
@@ -363,6 +375,7 @@ node test/cdp.mjs http://localhost:8765/test/table.html      # table commands an
 node test/cdp.mjs http://localhost:8765/test/emoji.html      # shortcodes and the completion popup
 node test/cdp.mjs http://localhost:8765/test/slash.html      # slash commands, typed with real keys
 node test/cdp.mjs http://localhost:8765/test/fold.html       # section folding
+node test/cdp.mjs http://localhost:8765/test/share.html      # share links: copy, open, reopen, bad link, long-link warning
 node test/probe.mjs "toggle('source')" print "<eval js>"     # one-off: load, run setup, emulate media, evaluate
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?code#paper,linenos,hnums,eqnos,source' shot.png   # screenshot: theme, toggles
 node test/cdp.mjs 'http://localhost:8765/test/shot.html?menu=bFile#paper' shot.png                       # screenshot with a menu open

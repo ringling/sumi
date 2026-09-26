@@ -56,6 +56,15 @@ downloads everything as one JSON file that imports into any browser. Save
 writes to a real file through the File System Access API where the browser
 supports it, and downloads otherwise.
 
+## Sharing
+
+File ▸ Copy share link puts the whole document into a link, compressed, in
+the URL fragment. Whoever opens the link in Sumi gets the document as their
+own copy. Fragments are never sent to a server, so the content travels only
+between the two browsers. It is a snapshot, so a new link is needed after
+edits, and mail and chat apps tend to cut links past about 8 KB, which is
+roughly five pages of text; Sumi warns in the toast when a link is that long.
+
 ## Looks
 
 Seven themes under Theme: Paper, Ink, GitHub, Whitey, Newsprint, Sepia and

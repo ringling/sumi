@@ -1,0 +1,48 @@
+<!doctype html><meta charset="utf-8"><pre id="out"></pre>
+<iframe id="f" src="/sumi.html" style="width:1300px;height:700px"></iframe>
+<script>
+const out=[]; const ok=(c,m)=>out.push((c?'PASS ':'FAIL ')+m);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const f=document.getElementById('f');
+const loadFrame=()=>new Promise(r=>{f.onload=()=>setTimeout(r,600); });
+let w,d,$,$$;
+const bind=()=>{w=f.contentWindow; d=f.contentDocument; $=s=>d.querySelector(s); $$=s=>[...d.querySelectorAll(s)];};
+const mclick=(id,sel)=>{ $('#'+id).click(); $('#menu '+sel).click(); if($('#menu').classList.contains('show')) d.body.click(); };
+const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File([text],name,{type:'text/markdown'})); w.dispatchEvent(new w.DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true})); return sleep(500); };
+const docText=()=>$$('#editor .line').map(l=>{ const s=l.querySelector('.src'); return s?s.textContent:[...l.childNodes].filter(n=>!(n.nodeType===1&&n.hasAttribute('data-x'))).map(n=>n.textContent).join(''); }).join('\n');
+const rows=()=>$$('#docs .doc').map(r=>(r.querySelector('.n')||{}).textContent);
+const share=async()=>{ let link=null; w.navigator.clipboard.writeText=t=>{ link=t; return Promise.resolve(); }; mclick('bFile','[data-act=share]'); for(let i=0;i<40&&!link;i++) await sleep(50); await sleep(100); return link; };
+const src='# Delt dokument\n\nÆøå og emoji :rocket: 🚀, `kode`, **fed**.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n';
+(async()=>{
+  await loadFrame(); bind(); w.localStorage.clear(); w.indexedDB.deleteDatabase('sumi');
+  Object.defineProperty(w,'localStorage',{get(){throw new Error('blocked');}});
+  f.src='/sumi.html?fresh'; await loadFrame(); bind();
+  await drop(src,'delt.md');
+  const link=await share();
+  ok(typeof link==='string'&&link.startsWith(w.location.href.replace(/#.*$/,'')+'#d=1.')&&/^[A-Za-z0-9_-]+$/.test(link.split('#d=1.')[1]),'share link: page url + #d=1. + base64url: '+(link||'').slice(0,60));
+  ok(/Link copied, \d+\.\d KB$/.test($('#toast').textContent),'toast reports the size without a warning: '+$('#toast').textContent);
+  const hash=link.slice(link.indexOf('#'));
+  // open the link in a loaded frame: storage kept, so the drawer shows both documents
+  f.src='/sumi.html?opened'+hash; await loadFrame(); bind(); await sleep(400);
+  ok($('#name').value==='delt.md'&&docText()===src,'opening the link shows the shared document with its name and text');
+  ok(w.location.hash===''&&/Opened shared document/.test($('#toast').textContent),'fragment cleared, toast shown: '+JSON.stringify(w.location.hash));
+  mclick('bFile','[data-n=docs]'); await sleep(250);
+  ok(rows().filter(n=>n==='delt.md').length===1&&rows().length===2,'an identical document is reopened, not duplicated (welcome doc + shared): '+rows().join('|'));
+  // a second, different document; then the same link via hashchange reopens the first
+  mclick('bFile','[data-act=new]'); await sleep(300);
+  w.location.hash=hash; await sleep(800);
+  ok($('#name').value==='delt.md'&&docText()===src&&w.location.hash===''&&rows().length===3&&rows().filter(n=>n==='delt.md').length===1,'hashchange with the link reopens the existing copy: '+rows().join('|'));
+  // garbage
+  const before=docText(); w.location.hash='#d=1.notreallyavalidpayload'; await sleep(600);
+  ok(/Not a Sumi link/.test($('#toast').textContent)&&docText()===before&&w.location.hash==='','a broken link toasts and changes nothing');
+  // long document warns
+  let seed=7; const rnd=()=>(seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff; const syl=['ka','to','mi','ne','ru','sa','vi','lo','de','pa','fy','ge','ho','ju','bæ','øl','år'];
+  const word=()=>Array.from({length:2+Math.floor(rnd()*4)},()=>syl[Math.floor(rnd()*syl.length)]).join('');
+  const prose=Array.from({length:9000},word).join(' ').replace(/(([^ ]+ ){12})/g,'$1\n');
+  await drop('# Long\n\n'+prose,'long.md');
+  const big=await share();
+  ok(big.length>8192&&/Long links may be cut/.test($('#toast').textContent),'a long document warns about link length: '+(big.length/1024).toFixed(1)+' KB');
+  w.localStorage.clear();
+  document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
+})().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});
+</script>

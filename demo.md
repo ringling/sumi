@@ -211,5 +211,6 @@ Reference and footnote definitions can live anywhere. They render faintly and ar
 - **Themes**: Theme ▸ seven built-in themes, or drop a `.css` file on the window (see `themes/sample.css`).
 - **Print**: ⌘P prints a compact page; Page ▸ Page break starts a new page at each `#` and `##`.
 - **Documents and history**: File ▸ Documents lists everything written in this browser; File ▸ History keeps versions with diff and restore; File ▸ Backup exports all of it as one file.
+- **Sharing**: File ▸ Copy share link packs this document into a link; whoever opens it in Sumi gets a copy. Nothing goes through a server.
 - **Views**: View ▸ Focus, Typewriter, Outline, Source code.
 - **Numbering**: Page ▸ Code line numbers, Heading numbers and Equation numbers. A document with a single `#` keeps that title unnumbered and numbers the sections from `##`; the table of contents follows.
