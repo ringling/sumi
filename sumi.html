@@ -474,6 +474,7 @@ body.hnums ul.toc .tn{display:inline}
   font-family:var(--sans); font-size:13px; color:var(--ink-soft);
 }
 #help h2{font-family:var(--body); font-size:20px; color:var(--ink); margin:0 0 14px}
+#help h2 .ver{font-family:var(--sans); font-size:12px; color:var(--ink-faint); font-weight:400; margin-left:.5em}
 #help table{width:100%; border-collapse:collapse}
 #help td{padding:4px 0; vertical-align:top}
 #help td:first-child{width:11em; color:var(--ink)}
@@ -560,7 +561,7 @@ kbd{
 <div id="toast"></div>
 
 <div id="help"><div class="card">
-  <h2>Sumi</h2>
+  <h2>Sumi <small class="ver"></small></h2>
   <table>
     <tr><td><kbd>⌘B</kbd> <kbd>⌘I</kbd> <kbd>⌘K</kbd></td><td>bold, italic, link</td></tr>
     <tr><td><kbd>⌘⇧K</kbd></td><td>inline code</td></tr>
@@ -2392,6 +2393,7 @@ function exportHtml() {
   const doc = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="generator" content="Sumi ${VERSION}">
 <title>${att(title)}</title>
 ${head}<style>
 :root{${tokens}}
@@ -2843,7 +2845,7 @@ async function backup() {
   await flush();
   let docs = [], versions = [];
   try { docs = (await idb.all('docs')).map(({ handle, ...d }) => d); versions = await idb.all('versions'); } catch (e) { toast('No document storage to back up'); return; }
-  download(new Blob([JSON.stringify({ sumi: 1, exported: new Date().toISOString(), docs, versions })], { type: 'application/json' }),
+  download(new Blob([JSON.stringify({ sumi: 1, version: VERSION, exported: new Date().toISOString(), docs, versions })], { type: 'application/json' }),
            'sumi-backup-' + new Date().toISOString().slice(0, 10) + '.json');
   toast(`Backup: ${docs.length} documents, ${versions.length} versions`);
 }
@@ -2980,6 +2982,8 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
 /* ── lazy dependencies ────────────────────────────────────────────────
    Everything above works offline. These two only add math and diagrams,
    and their absence degrades to plain source text. */
+const VERSION = '0.5.0';   /* keep in step with CHANGELOG.md */
+$('#help .ver').textContent = VERSION;
 const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/';
 const KATEX_CSS = CDN + 'KaTeX/0.17.0/katex.min.css';
 const MERMAID_ESM = 'https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs';

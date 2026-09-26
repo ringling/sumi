@@ -408,6 +408,9 @@ known caret offset survives a render.
 
 ## Conventions
 
+- `VERSION` in the script is the app version: bump it with an entry in
+  `CHANGELOG.md` when a batch of features lands. It shows in the help panel
+  and goes into the export's `generator` meta and the backup JSON.
 - No build step, no bundler, no framework. If a change needs one, it is the wrong change.
 - Documents live in IndexedDB (see Documents below). Small state goes through
   `persist()`/`recall()`/`forget()`, which prefer `window.storage`, fall back

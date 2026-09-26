@@ -98,6 +98,7 @@ Press `⌘/` in the editor for the full list. The ones worth learning:
 | `themes/sample.css` | starting point for a custom theme |
 | `test/` | browser harnesses driven by headless Chrome over the DevTools protocol |
 | `CLAUDE.md` | working notes on the internals, invariants and conventions |
+| `CHANGELOG.md` | what changed in each version; the number is shown under ⌘/ |
 
 ## Tests
 
