@@ -6,6 +6,7 @@ commit dates.
 
 ## 0.5.0 — 2026-09-26
 
+- The Documents and History drawers stay open or closed across reloads.
 - Share a document as a link: File ▸ Copy share link packs the document,
   compressed, into the URL fragment; opening it in Sumi creates the document
   or reopens an identical one. Nothing goes through a server.

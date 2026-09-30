@@ -1962,7 +1962,7 @@ addEventListener('mousemove', e => $('#bar').classList.toggle('show', e.clientY 
 $('#bar').addEventListener('mouseenter', () => $('#bar').classList.add('show'));
 /* View-state classes on body. The menus read them back, so there is no button
    state to keep in sync; the persisted ones are written on every change. */
-const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos', 'nopair', 'notidy'];
+const PERSISTED = ['pagebreak', 'linenos', 'hnums', 'eqnos', 'nopair', 'notidy', 'docs', 'hist'];
 function toggle(cls) {
   const on = document.body.classList.toggle(cls);
   if (PERSISTED.includes(cls)) storeSettings();
@@ -2503,6 +2503,8 @@ const storeSettings = () => persist(SKEY, {
   ...Object.fromEntries(NUMS.map(([cls]) => [cls, document.body.classList.contains(cls)])),
   nopair: document.body.classList.contains('nopair'),
   notidy: document.body.classList.contains('notidy'),
+  docs: document.body.classList.contains('docs'),
+  hist: document.body.classList.contains('hist'),
 });
 
 let dbp = null;
@@ -2974,6 +2976,9 @@ Press <kbd>⌘/</kbd> for shortcuts. Drop a .md file anywhere on the window to o
     d = { id: 'draft', name: (legacy && legacy.name) || 'untitled.md', text: (legacy && legacy.text) || WELCOME, created: 0, updated: 0 };
   }
   showDoc(d);
+  /* the Documents and History drawers reopen as they were left */
+  if (prefs && prefs.docs) { document.body.classList.add('docs'); buildDocs(); }
+  if (prefs && prefs.hist) { document.body.classList.add('hist'); buildHist(); }
   if (location.hash.startsWith('#d=')) await importShared(location.hash);
   $('#bar').classList.add('show');
   setTimeout(() => $('#bar').classList.remove('show'), 2200);

@@ -84,7 +84,7 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
   // reload restores the open document
   f.src='/sumi.html?again'; await loadFrame(); bind();
   ok($('#name').value==='old.md'&&$('#editor .line').textContent==='# Old draft','open document restored after reload');
-  ok(!d.body.classList.contains('docs'),'drawer state is per session');
+  ok(d.body.classList.contains('docs')&&rows().length===1&&rows()[0].classList.contains('on'),'Documents drawer reopens after reload, built for the restored document');
   // two tabs: the other tab edits the same document
   g.src='/sumi.html?other'; await loadFrame(g);
   const gw=g.contentWindow, gd=g.contentDocument;

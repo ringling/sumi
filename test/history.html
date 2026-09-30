@@ -80,6 +80,8 @@ const drop=(text,name)=>{ const dt=new w.DataTransfer(); dt.items.add(new w.File
   ok($$('#docs .doc').length===3&&(await idbAll(w,'versions')).length===all.length,'importing twice adds nothing');
   await drop('{"nope":true}','x.json');
   ok(/Not a Sumi backup/.test($('#toast').textContent),'foreign json rejected');
+  f.src='/sumi.html?reload'; await loadFrame(); bind(); await sleep(300);
+  ok(d.body.classList.contains('hist')&&!!$('#hist .hd')&&vers().length>0,'History drawer reopens after reload, built for the open document');
   w.localStorage.clear();
   document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nDONE';
 })().catch(e=>{document.getElementById('out').textContent='RESULTS\n'+out.join('\n')+'\nERROR '+e.stack;});

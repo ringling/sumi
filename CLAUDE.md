@@ -333,7 +333,9 @@ harnesses, which drive everything through the menus (`mclick`, `mlabel`,
 `mon`, `themeOn` helpers at the top of each harness).
 
 Settings record (`sumi:settings`): theme, custom CSS, width, font, margin,
-pages and the three numbering flags. Width and font store `-1` when a theme's
+pages, the three numbering flags, auto-pair and auto-tidy switches, and
+whether the Documents and History drawers are open (restored after
+`showDoc` at startup so they can build for the open document). Width and font store `-1` when a theme's
 own value is in effect and are then left to the theme on restore.
 
 ## Themes
