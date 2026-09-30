@@ -43,18 +43,19 @@ load from a CDN when available and degrade to plain source when not.
   deletes rows and columns.
 - Section folding from the chevron beside a heading, find and replace that
   searches the source, list cycling, heading numbering, equation numbering,
-  code line numbers, and an outline drawer that flags a second h1 or a skipped
-  level.
+  code line numbers, copy as rich text for Word and mail, and an outline
+  drawer that flags a second h1 or a skipped level.
 
 ## Documents
 
 Every document lives in the browser's IndexedDB. File ▸ Documents lists them
 by last edit; click to switch, double-click to rename, × twice to delete.
 Versions are kept automatically after a pause, when you leave a document and
-on save; File ▸ History shows them with diff and restore. File ▸ Backup
-downloads everything as one JSON file that imports into any browser. Save
-writes to a real file through the File System Access API where the browser
-supports it, and downloads otherwise.
+on save; File ▸ History shows them with diff and restore. Both drawers stay
+open or closed across reloads. File ▸ Backup downloads everything as one
+JSON file that imports into any browser. Save writes to a real file through
+the File System Access API where the browser supports it, and downloads
+otherwise.
 
 ## Sharing
 
@@ -69,9 +70,9 @@ roughly five pages of text; Sumi warns in the toast when a link is that long.
 
 Seven themes under Theme: Paper, Ink, GitHub, Whitey, Newsprint, Sepia and
 Night. Cmd-Shift-D flips between a theme's light and dark counterpart. A
-custom theme is a CSS file dropped on the window; `themes/sample.css`
-documents every token. Width, typeface, margins and page breaks are under
-View and Page. Print and PDF use a compact page regardless of theme.
+custom theme is a CSS file dropped on the window; `themes/sample.css` documents every token. Width, typeface, margins, page
+breaks and the numbering options are under View and Page, and every setting
+is remembered. Print and PDF use a compact page regardless of theme.
 
 ## Shortcuts
 
@@ -98,7 +99,7 @@ Press `⌘/` in the editor for the full list. The ones worth learning:
 | `themes/sample.css` | starting point for a custom theme |
 | `test/` | browser harnesses driven by headless Chrome over the DevTools protocol |
 | `CLAUDE.md` | working notes on the internals, invariants and conventions |
-| `CHANGELOG.md` | what changed in each version; the number is shown under ⌘/ |
+| `CHANGELOG.md` | what changed in each version; the number is shown under ⌘/ and written into exports |
 
 ## Tests
 
