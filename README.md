@@ -25,6 +25,7 @@ not. Maths (KaTeX), diagrams (Mermaid) and code highlighting (highlight.js)
 load from a CDN when available and degrade to plain source when not.
 
 `demo.md` shows every supported construct; drop it on the window.
+`FEATURES.md` describes each feature and how to reach it.
 
 ## Writing
 
@@ -96,6 +97,7 @@ Press `⌘/` in the editor for the full list. The ones worth learning:
 |---|---|
 | `sumi.html` | the editor, everything in one file |
 | `demo.md` | every supported construct in one document |
+| `FEATURES.md` | one entry per feature: what it does, how you reach it, what to expect |
 | `themes/sample.css` | starting point for a custom theme |
 | `test/` | browser harnesses driven by headless Chrome over the DevTools protocol |
 | `CLAUDE.md` | working notes on the internals, invariants and conventions |
